@@ -64,7 +64,7 @@ aside{background:var(--panel);min-width:0}
 #vLab i{position:absolute;background:rgba(127,127,127,.35)}
 #hint{position:absolute;left:0;top:0;pointer-events:none;font:500 13px/1.2 var(--sans);background:var(--accent);color:var(--accent-fg);padding:5px 10px;border-radius:999px;white-space:nowrap;box-shadow:2px 3px 8px var(--lo);z-index:2}
 #hint small{font-weight:400;opacity:.9}
-#msg{position:absolute;left:14px;top:12px;font-size:13px;color:var(--warn);max-width:46%}
+#msg{position:absolute;left:14px;top:62px;font-size:13px;color:var(--warn);max-width:60%;z-index:1;pointer-events:none}
 .f{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 8px;align-items:center;border-radius:6px;transition:box-shadow .25s}
 .f label{font-size:14px}
 .f label[title]{text-decoration:underline dotted var(--muted);text-underline-offset:3px;cursor:help}
@@ -190,7 +190,7 @@ h2{font:600 13px var(--cond);letter-spacing:.08em;text-transform:uppercase;margi
 </head>
 <body>
 <header>
-  <h1>Officina <span>Finiture</span> <small id="ver">v1.0.0</small></h1>
+  <h1>Officina <span>Finiture</span> <small id="ver">v1.1.0</small></h1>
   <div class="bar">
     <button id="bUndo" title="Annulla l'ultima modifica (Ctrl+Z)" disabled>Annulla</button>
     <button id="bRedo" title="Ripeti la modifica annullata (Ctrl+Y)" disabled>Ripeti</button>
@@ -260,7 +260,7 @@ h2{font:600 13px var(--cond);letter-spacing:.08em;text-transform:uppercase;margi
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const VER='1.0.0';
+const VER='1.1.0';
 const TAU=Math.PI*2, clamp=(v,a,b)=>Math.min(b,Math.max(a,v)), lerp=(a,b,t)=>a+(b-a)*t;
 const $=id=>document.getElementById(id);
 const nf=(v,d=1)=>(+v).toLocaleString('it-IT',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -454,14 +454,14 @@ const KIND={
   telaio:{n:'Griglia in tessuto su telaio', zones:{tessuto:'Tessuto'}, g:{W:200,H:300,r:4,t:12}},
   altoparlante:{n:'Altoparlante', zones:{telaio:'Flangia',sospensione:'Sospensione',cono:'Cono o membrana',cupola:'Cupola'}, g:{D:165}},
   componente:{n:'Componente', zones:{metallo:'Finitura',lente:'Lente'}, g:{tipo:'footswitch',on:true,lc:'#ff3b2f'}},
-  stl:{n:'Pezzo da STL', zones:{superficie:'Superficie'}, g:{sc:1,mesh:'',file:''}} };
+  stl:{n:'Pezzo da STL', zones:{superficie:'Superficie'}, g:{sc:1,mesh:'',file:'',up:'y'}} };
 const COMP={footswitch:'Interruttore a pedale (footswitch)',levetta:'Interruttore a levetta',led:'LED con ghiera',jack:'Presa jack con dado',piedino:'Piedino in gomma'};
 const PAT={tondi60:'Fori tondi sfalsati a 60° (Rv)',tondi90:'Fori tondi in linea (Rg)',quadri:'Fori quadri (Qg)',esagoni:'Esagoni a nido d\'ape',asole:'Asole sfalsate'};
 // zone che si vedono davvero su questo pezzo, e zone che prendono la finitura di un'altra
-function zonesOf(pt){ const z=Object.keys(KIND[pt.kind].zones), g=pt.g;
+function zonesOf(pt){ if(pt.kind==='stl'&&pt.g.zones&&pt.g.zones.length) return pt.g.zones.map(z=>z.k); const z=Object.keys(KIND[pt.kind].zones), g=pt.g;
   return z.filter(k=>!(k==='scritte'&&!g.leg)&&!(k==='faccia'&&!g.cap)&&!(k==='fronte'&&!g.front)&&!(k==='lente'&&g.tipo!=='led')&&!(k==='cupola'&&false)); }
 function aliasZone(pt,z){ const g=pt.g; if(z==='faccia'&&!g.cap) return 'corpo'; if(z==='fronte'&&!g.front) return 'corpo'; return z; }
-const zoneName=(pt,z)=>KIND[pt.kind].zones[z]||z;
+const zoneName=(pt,z)=>{ if(pt.kind==='stl'&&pt.g.zones){ const q=pt.g.zones.find(x=>x.k===z); if(q) return q.n; } return KIND[pt.kind].zones[z]||z; };
 
 /* ---------- geometria ---------- */
 function rrShape(w,h,r){ r=Math.max(0,Math.min(r,w/2-0.01,h/2-0.01)); const s=new THREE.Shape(), x=-w/2, y=-h/2;
@@ -574,21 +574,46 @@ function gridGeo(g){ const [bw,bh]=gridBox(g), n=64, dz=domeAt(g), pos=[], uv=[]
 
 /* ---------- STL ---------- */
 const MESHES={};  // id → {pos: Float32Array} (tenuti fuori dalla cronologia: possono essere grandi)
-function parseSTL(buf){ const dv=new DataView(buf); let pos=null;
-  if(buf.byteLength>84){ const n=dv.getUint32(80,true); if(84+n*50===buf.byteLength){ pos=new Float32Array(n*9); for(let t=0;t<n;t++){ const o=84+t*50+12; for(let k=0;k<9;k++) pos[t*9+k]=dv.getFloat32(o+k*4,true); } } }
+// STL binario o di testo; nei binari di Materialise, SolidWorks e VisCAM legge anche il colore di ogni faccia
+function parseSTL(buf){ const dv=new DataView(buf); let pos=null, col=null;
+  if(buf.byteLength>84){ const n=dv.getUint32(80,true); if(84+n*50===buf.byteLength){ pos=new Float32Array(n*9); const at=new Uint16Array(n); let any=0;
+      for(let t=0;t<n;t++){ const o=84+t*50+12; for(let k=0;k<9;k++) pos[t*9+k]=dv.getFloat32(o+k*4,true); at[t]=dv.getUint16(o+36,true); any|=at[t]; }
+      const head=new TextDecoder('latin1').decode(new Uint8Array(buf,0,80)), mat=/COLOR=/.test(head);
+      if(any){ col=new Int32Array(n).fill(-1); for(let t=0;t<n;t++){ const a=at[t]; if(mat?!(a&0x8000):(a&0x8000)){ const lo=a&31, mid=(a>>5)&31, hi=(a>>10)&31, [r,g,b]=mat?[lo,mid,hi]:[hi,mid,lo]; col[t]=(r<<10)|(g<<5)|b; } } } } }
   if(!pos){ const txt=new TextDecoder().decode(buf), m=txt.match(/vertex\s+[-+\d.eE]+\s+[-+\d.eE]+\s+[-+\d.eE]+/g); if(!m||m.length<3) throw new Error('STL non riconosciuto');
     pos=new Float32Array(m.length*3); m.forEach((s,i)=>{ const v=s.trim().split(/\s+/); pos[i*3]=+v[1]; pos[i*3+1]=+v[2]; pos[i*3+2]=+v[3]; }); }
-  let mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9]; for(let i=0;i<pos.length;i+=3) for(let k=0;k<3;k++){ mn[k]=Math.min(mn[k],pos[i+k]); mx[k]=Math.max(mx[k],pos[i+k]); }
-  const cx=(mn[0]+mx[0])/2, cy=(mn[1]+mx[1])/2; for(let i=0;i<pos.length;i+=3){ pos[i]-=cx; pos[i+1]-=cy; pos[i+2]-=mn[2]; } return pos; }
+  return {pos,col}; }
+const c15hex=c=>rgb2hex([(c>>10&31)/31,(c>>5&31)/31,(c&31)/31]);
+// vertici coincidenti → stesso numero (tabella a indirizzamento aperto sui bit dei float: veloce anche con milioni di vertici)
+function weld(pos){ const n=pos.length/3, U=new Uint32Array(pos.buffer,pos.byteOffset,pos.length), size=1<<Math.ceil(Math.log2(n*2+16)), T=new Int32Array(size).fill(-1), vid=new Int32Array(n); let nv=0;
+  for(let i=0;i<n;i++){ const a=U[i*3],b=U[i*3+1],c=U[i*3+2]; let h=((Math.imul(a,73856093)^Math.imul(b,19349663)^Math.imul(c,83492791))>>>0)&(size-1);
+    for(;;){ const j=T[h]; if(j<0){ T[h]=i; vid[i]=nv++; break; } if(U[j*3]===a&&U[j*3+1]===b&&U[j*3+2]===c){ vid[i]=vid[j]; break; } h=(h+1)&(size-1); } }
+  return {vid,nv}; }
 // normali morbide sotto i 35°, spigoli vivi sopra: le superfici curve non si vedono a faccette
-function creased(pos,deg=35){ const n=pos.length/9, FN=new Float32Array(n*3), key=i=>Math.round(pos[i]*1e3)+','+Math.round(pos[i+1]*1e3)+','+Math.round(pos[i+2]*1e3), M=new Map();
+function creased(pos,deg=35){ const n=pos.length/9, {vid,nv}=weld(pos), FN=new Float32Array(n*3), cnt=new Int32Array(nv+1);
   for(let t=0;t<n;t++){ const o=t*9, ux=pos[o+3]-pos[o],uy=pos[o+4]-pos[o+1],uz=pos[o+5]-pos[o+2],wx=pos[o+6]-pos[o],wy=pos[o+7]-pos[o+1],wz=pos[o+8]-pos[o+2];
-    let x=uy*wz-uz*wy, y=uz*wx-ux*wz, z=ux*wy-uy*wx; const l=Math.hypot(x,y,z)||1; FN[t*3]=x/l; FN[t*3+1]=y/l; FN[t*3+2]=z/l;
-    for(let k=0;k<3;k++){ const kk=key(o+k*3); let a=M.get(kk); if(!a) M.set(kk,a=[]); a.push(t); } }
+    let x=uy*wz-uz*wy, y=uz*wx-ux*wz, z=ux*wy-uy*wx; const l=Math.hypot(x,y,z)||1; FN[t*3]=x/l; FN[t*3+1]=y/l; FN[t*3+2]=z/l; for(let k=0;k<3;k++) cnt[vid[t*3+k]+1]++; }
+  for(let i=0;i<nv;i++) cnt[i+1]+=cnt[i]; const L=new Int32Array(n*3), fill=cnt.slice(0,nv); for(let t=0;t<n;t++) for(let k=0;k<3;k++) L[fill[vid[t*3+k]]++]=t;
   const N=new Float32Array(pos.length), ct=Math.cos(deg*Math.PI/180);
-  for(let t=0;t<n;t++) for(let k=0;k<3;k++){ const o=t*9+k*3, list=M.get(key(o)); let x=0,y=0,z=0; for(const s of list){ const d=FN[t*3]*FN[s*3]+FN[t*3+1]*FN[s*3+1]+FN[t*3+2]*FN[s*3+2]; if(d>=ct){ x+=FN[s*3]; y+=FN[s*3+1]; z+=FN[s*3+2]; } }
+  for(let t=0;t<n;t++) for(let k=0;k<3;k++){ const v=vid[t*3+k], o=t*9+k*3; let x=0,y=0,z=0; for(let q=cnt[v];q<cnt[v+1];q++){ const s=L[q], d=FN[t*3]*FN[s*3]+FN[t*3+1]*FN[s*3+1]+FN[t*3+2]*FN[s*3+2]; if(d>=ct){ x+=FN[s*3]; y+=FN[s*3+1]; z+=FN[s*3+2]; } }
     const l=Math.hypot(x,y,z)||1; N[o]=x/l; N[o+1]=y/l; N[o+2]=z/l; }
   return N; }
+// i corpi separati dentro un STL (mobile, cono, viti...) diventano parti; le copie identiche diventano una parte sola
+function analyzeSTL(pos,col,up){ const n=pos.length/9, {vid,nv}=weld(pos), par=new Int32Array(nv); for(let i=0;i<nv;i++) par[i]=i;
+  const find=x=>{ while(par[x]!==x){ par[x]=par[par[x]]; x=par[x]; } return x; };
+  for(let t=0;t<n;t++){ const a=find(vid[t*3]), b=find(vid[t*3+1]), c=find(vid[t*3+2]); par[b]=a; par[find(c)]=a; }
+  const cm=new Map(), comp=new Int32Array(n); for(let t=0;t<n;t++){ const r=find(vid[t*3]); let k=cm.get(r); if(k===undefined){ k=cm.size; cm.set(r,k); } comp[t]=k; }
+  const C=[...Array(cm.size)].map(()=>({n:0,a:0,mn:[1e9,1e9,1e9],mx:[-1e9,-1e9,-1e9],col:new Map()}));
+  for(let t=0;t<n;t++){ const c=C[comp[t]], o=t*9; c.n++; for(let k=0;k<9;k++){ const a=k%3; if(pos[o+k]<c.mn[a]) c.mn[a]=pos[o+k]; if(pos[o+k]>c.mx[a]) c.mx[a]=pos[o+k]; }
+    const ux=pos[o+3]-pos[o],uy=pos[o+4]-pos[o+1],uz=pos[o+5]-pos[o+2],wx=pos[o+6]-pos[o],wy=pos[o+7]-pos[o+1],wz=pos[o+8]-pos[o+2], ar=Math.hypot(uy*wz-uz*wy,uz*wx-ux*wz,ux*wy-uy*wx)/2; c.a+=ar;
+    if(col&&col[t]>=0) c.col.set(col[t],(c.col.get(col[t])||0)+ar); }
+  const G=new Map(); C.forEach((c,i)=>{ c.c=[...c.col.entries()].sort((a,b)=>b[1]-a[1])[0]; c.c=c.c?c.c[0]:-1; const d=c.mx.map((v,k)=>Math.round((v-c.mn[k])*2)/2).sort((a,b)=>a-b);
+    const key=c.n+'|'+d.join('x')+'|'+c.c; let g=G.get(key); if(!g) G.set(key,g={ids:[],a:0,c:c.c,mn:[...c.mn],mx:[...c.mx]}); g.ids.push(i); g.a+=c.a; for(let k=0;k<3;k++){ g.mn[k]=Math.min(g.mn[k],c.mn[k]); g.mx[k]=Math.max(g.mx[k],c.mx[k]); } });
+  let Z=[...G.values()].sort((a,b)=>b.a-a.a); const MAXZ=32; if(Z.length>MAXZ){ const rest=Z.slice(MAXZ-1), m={ids:rest.flatMap(g=>g.ids),a:0,c:-1,rest:rest.length,mn:[0,0,0],mx:[0,0,0]}; Z=[...Z.slice(0,MAXZ-1),m]; }
+  const zc=new Int32Array(C.length); Z.forEach((g,k)=>g.ids.forEach(i=>zc[i]=k)); const zid=new Uint8Array(n); for(let t=0;t<n;t++) zid[t]=zc[comp[t]];
+  const dim=g=>{ const d=g.mx.map((v,k)=>v-g.mn[k]); const [w,h,dp]=up==='z'?[d[0],d[2],d[1]]:[d[0],d[1],d[2]]; return `${nf(w,0)} × ${nf(h,0)} × ${nf(dp,0)} mm`; };
+  const zones=Z.map((g,k)=>({k:'z'+k,n:g.rest?`Altre parti piccole (${g.rest})`:`Parte ${k+1}`+(g.ids.length>1?` (× ${g.ids.length})`:''),d:g.rest?'':dim(g),c:g.c>=0?c15hex(g.c):''}));
+  return {zid,zones,bodies:C.length}; }
 const b64e=u8=>{ let s=''; for(let i=0;i<u8.length;i+=32768) s+=String.fromCharCode.apply(null,u8.subarray(i,i+32768)); return btoa(s); };
 const b64d=s=>{ const b=atob(s), u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; };
 
@@ -723,7 +748,8 @@ function makeMat(s,ctx){ const F=famOf(s), V=varOf(s), uvmm=ctx.uvmm||1, m=new T
 const PHOTO={};   // id del campione → trame (colore e rilievo) ricavate dalla foto
 const DEFP={ officina:'finiture', nome:'Nuovo progetto', cliente:'', codice:'', autore:'', note:'', parts:[], variants:[{name:'A',asg:{},hide:[]}], cur:0, sel:'', zone:'',
   env:'studio', envRot:0, expo:1, shadow:true, age:0, qty:100, tolE:1, tolG:5, samples:{}, side:false };
-function defSpec(kind,zone){ const S=(fam,v,sub,x)=>({fam,var:v,sub,dir:0,ts:1,tn:1,...x});
+function defSpec(kind,zone,pt){ const S=(fam,v,sub,x)=>({fam,var:v,sub,dir:0,ts:1,tn:1,...x});
+  if(kind==='stl'&&pt&&pt.g.zones){ const q=pt.g.zones.find(x=>x.k===zone); const c=q&&q.c||'#8a8d91', n=nearRAL(c); return S('lacca','satinata','mdf',{col:c,code:n.dE<1.5?'RAL '+n.code:'',gu:30}); }
   switch(kind+'.'+zone){
     case 'manopola.corpo': case 'manopola.faccia': return S('anod','spazzolato','al_tornito',{anod:'naturale'});
     case 'manopola.indice': return S('segno','laser','',{col:'#f1ece1'});
@@ -746,7 +772,7 @@ const curV=()=>p.variants[clamp(p.cur,0,p.variants.length-1)];
 const partById=id=>p.parts.find(q=>q.id===id);
 const selPart=()=>partById(p.sel)||p.parts[0]||null;
 function specFor(vi,pt,zone){ const v=p.variants[vi], z=aliasZone(pt,zone); v.asg[pt.id]=v.asg[pt.id]||{}; let s=v.asg[pt.id][z];
-  if(!s){ s=v.asg[pt.id][z]=defSpec(pt.kind,z); if(pt.kind==='manopola'&&z==='faccia'&&v.asg[pt.id].corpo) Object.assign(s,clone(v.asg[pt.id].corpo)); } return s; }
+  if(!s){ s=v.asg[pt.id][z]=defSpec(pt.kind,z,pt); if(pt.kind==='manopola'&&z==='faccia'&&v.asg[pt.id].corpo) Object.assign(s,clone(v.asg[pt.id].corpo)); } return s; }
 // la marcatura sta sopra un'altra finitura: quale
 function baseOfMark(vi,pt,zone){ if(pt.kind==='manopola') return specFor(vi,pt,pt.g.ptr==='lato'?'corpo':'faccia'); if(pt.kind==='pannello') return specFor(vi,pt,'piano'); if(pt.kind==='scatola') return specFor(vi,pt,'fronte'); return null; }
 const hidden=(vi,pt)=>(p.variants[vi].hide||[]).includes(pt.id);
@@ -793,12 +819,17 @@ function zoneMeshes(pt){ const g=pt.g, out=[]; const add=(zone,geo,ud={})=>{ if(
   else if(pt.kind==='griglia'){ const q=gridGeo(g); add('lamiera',q.plate,{grid:1,double:1}); add('lamiera',q.edge,{}); }
   else if(pt.kind==='altoparlante'){ const k=speakerGeo(g); for(const z of ['telaio','sospensione','cono','cupola']) add(z,k[z]); }
   else if(pt.kind==='componente'){ const k=compGeo(g); add('metallo',k.metallo); if(k.lente) add('lente',k.lente,{thick:2}); }
-  else if(pt.kind==='stl'){ const M=MESHES[g.mesh]; if(M){ const pos=M.pos.slice(); if(g.sc!==1) for(let i=0;i<pos.length;i++) pos[i]*=g.sc; const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); geo.setAttribute('normal',new THREE.BufferAttribute(creased(pos),3)); boxUV(geo); add('superficie',geo); } }
+  else if(pt.kind==='stl'){ const M=MESHES[g.mesh]; if(M){ if(!M.nrm) M.nrm=creased(M.pos); const P=M.pos, Nn=M.nrm, sc=g.sc||1, zup=g.up==='z', nz=g.zones&&M.zid?g.zones.length:1;
+      const cnt=new Int32Array(nz); const zi=t=>M.zid&&nz>1?M.zid[t]:0; const nt=P.length/9; for(let t=0;t<nt;t++) cnt[zi(t)]++;
+      const PA=[...cnt].map(c=>new Float32Array(c*9)), NA=[...cnt].map(c=>new Float32Array(c*9)), fill=new Int32Array(nz);
+      for(let t=0;t<nt;t++){ const k=zi(t), o=fill[k]*9, A=PA[k], B=NA[k]; fill[k]++; for(let v=0;v<3;v++){ const i=t*9+v*3, j=o+v*3;
+          if(zup){ A[j]=P[i]*sc; A[j+1]=P[i+2]*sc; A[j+2]=-P[i+1]*sc; B[j]=Nn[i]; B[j+1]=Nn[i+2]; B[j+2]=-Nn[i+1]; } else { A[j]=P[i]*sc; A[j+1]=P[i+1]*sc; A[j+2]=P[i+2]*sc; B[j]=Nn[i]; B[j+1]=Nn[i+1]; B[j+2]=Nn[i+2]; } } }
+      for(let k=0;k<nz;k++){ if(!cnt[k]) continue; const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(PA[k],3)); geo.setAttribute('normal',new THREE.BufferAttribute(NA[k],3)); boxUV(geo); add(nz>1?g.zones[k].k:(g.zones&&g.zones[0]?g.zones[0].k:'superficie'),geo); } } }
   return out; }
 function triArea(g){ const P=g.attributes.position, I=g.index, a=new THREE.Vector3(), b=new THREE.Vector3(), c=new THREE.Vector3(); let s=0; const n=I?I.count:P.count;
   for(let t=0;t<n;t+=3){ const i0=I?I.getX(t):t, i1=I?I.getX(t+1):t+1, i2=I?I.getX(t+2):t+2; a.fromBufferAttribute(P,i0); b.fromBufferAttribute(P,i1); c.fromBufferAttribute(P,i2); s+=b.sub(a).cross(c.sub(a)).length()/2; } return s; }
 function polyArea(P){ let s=0; for(let i=0;i<P.length;i++){ const a=P[i], b=P[(i+1)%P.length]; s+=a[0]*b[1]-b[0]*a[1]; } return Math.abs(s)/2; }
-function buildPart(pt){ let e=PG.get(pt.id); const sig=pt.kind+JSON.stringify(pt.g);
+function buildPart(pt){ let e=PG.get(pt.id); const sig=pt.kind+JSON.stringify(pt.kind==='stl'?{...pt.g,zones:(pt.g.zones||[]).map(z=>z.k)}:pt.g);
   if(!e){ e={grp:new THREE.Group(),sig:'',meshes:[],leg:null}; e.grp.userData.pid=pt.id; root.add(e.grp); PG.set(pt.id,e); }
   if(e.sig!==sig){ for(const m of e.meshes){ m.geometry.dispose(); e.grp.remove(m); } e.meshes=[]; e.sig=sig;
     for(const {zone,geo,ud} of zoneMeshes(pt)){ const m=new THREE.Mesh(geo); m.userData={pid:pt.id,zone,uvmm:1,...ud}; m.castShadow=!ud.grid&&!ud.mark; m.receiveShadow=!ud.mark;
@@ -874,19 +905,28 @@ new ResizeObserver(()=>{ const w=stage.clientWidth,h=stage.clientHeight; if(!w||
 
 /* ---------- parti sotto il puntatore ---------- */
 const ray=new THREE.Raycaster(), rayV=new THREE.Vector2(); let hovMesh=null, hovVi=-1, downXY=null;
-function pick(cx,cy){ const r=renderer.domElement.getBoundingClientRect(), x=cx-r.left, y=cy-r.top, v=vps().find(v=>x>=v.x&&x<v.x+v.w&&y>=v.y&&y<v.y+v.h); if(!v) return null;
-  camera.aspect=v.w/v.h; camera.updateProjectionMatrix(); rayV.set((x-v.x)/v.w*2-1,1-(y-v.y)/v.h*2); ray.setFromCamera(rayV,camera);
+function rayAt(cx,cy){ const r=renderer.domElement.getBoundingClientRect(), x=cx-r.left, y=cy-r.top, v=vps().find(v=>x>=v.x&&x<v.x+v.w&&y>=v.y&&y<v.y+v.h); if(!v) return null;
+  camera.aspect=v.w/v.h; camera.updateProjectionMatrix(); rayV.set((x-v.x)/v.w*2-1,1-(y-v.y)/v.h*2); ray.setFromCamera(rayV,camera); return v; }
+function pick(cx,cy){ const v=rayAt(cx,cy); if(!v) return null;
   const ms=[]; for(const pt of p.parts){ if(hidden(v.vi,pt)) continue; const e=PG.get(pt.id); if(e) ms.push(...e.meshes); }
   const h=ray.intersectObjects(ms,false).find(h=>{ if(!h.object.userData.grid) return true; const a=h.object.material&&h.object.material.alphaMap; if(!a||!h.uv1) return true; const img=a.image, cx2=img.getContext('2d'); const px=cx2.getImageData(Math.floor(h.uv1.x*(img.width-1)),Math.floor((1-h.uv1.y)*(img.height-1)),1,1).data; return px[0]>127; });
   return h?{m:h.object,vi:v.vi}:null; }
 function setHover(h){ const m=h&&h.m; if(hovMesh===m&&(!h||hovVi===h.vi)) return; unHov(); hovMesh=m||null; hovVi=h?h.vi:-1; requestRender(); }
-renderer.domElement.addEventListener('pointermove',e=>{ if(e.buttons){ $('hint').hidden=true; return; } const h=pick(e.clientX,e.clientY); setHover(h); const hint=$('hint');
+let hovQ=null, hovRaf=0;
+renderer.domElement.addEventListener('pointermove',e=>{ if(e.buttons){ $('hint').hidden=true; return; } hovQ=[e.clientX,e.clientY]; if(!hovRaf) hovRaf=requestAnimationFrame(()=>{ hovRaf=0; if(hovQ) hoverAt(...hovQ); }); });
+function hoverAt(cx,cy){ const e={clientX:cx,clientY:cy}; const h=pick(e.clientX,e.clientY); setHover(h); const hint=$('hint');
   if(!h){ hint.hidden=true; return; } const pt=partById(h.m.userData.pid), z=h.m.userData.zone, s=specFor(h.vi,pt,z), F=famOf(s), V=varOf(s), r=stage.getBoundingClientRect();
-  hint.innerHTML=`${esc(pt.name)} · ${esc(zoneName(pt,z))} <small>${esc(F.n)}, ${esc(V.n.toLowerCase())}</small>`; hint.hidden=false; hint.style.left=Math.min(r.width-hint.offsetWidth-8,e.clientX-r.left+14)+'px'; hint.style.top=(e.clientY-r.top+16)+'px'; });
-renderer.domElement.addEventListener('pointerleave',()=>{ setHover(null); $('hint').hidden=true; });
-renderer.domElement.addEventListener('pointerdown',e=>{ downXY=[e.clientX,e.clientY]; });
-renderer.domElement.addEventListener('pointerup',e=>{ if(!downXY||Math.hypot(e.clientX-downXY[0],e.clientY-downXY[1])>4) return; const h=pick(e.clientX,e.clientY); if(!h) return;
-  p.cur=h.vi; p.sel=h.m.userData.pid; p.zone=aliasZone(partById(p.sel),h.m.userData.zone); setSec(SCHEMA.findIndex(s=>s.id==='finitura')); update(); });
+  hint.innerHTML=`${esc(pt.name)} · ${esc(zoneName(pt,z))} <small>${esc(F.n)}, ${esc(V.n.toLowerCase())}</small>`; hint.hidden=false; hint.style.left=Math.min(r.width-hint.offsetWidth-8,e.clientX-r.left+14)+'px'; hint.style.top=(e.clientY-r.top+16)+'px'; }
+renderer.domElement.addEventListener('pointerleave',()=>{ hovQ=null; setHover(null); $('hint').hidden=true; });
+let drag=null; const dragV=new THREE.Vector3();
+renderer.domElement.addEventListener('pointerdown',e=>{ downXY=[e.clientX,e.clientY]; if(!e.shiftKey||e.button) return; const h=pick(e.clientX,e.clientY); if(!h) return;
+  const pt=partById(h.m.userData.pid), wp=new THREE.Vector3(); PG.get(pt.id).grp.getWorldPosition(wp); const pl=new THREE.Plane(new THREE.Vector3(0,1,0),-wp.y);
+  if(!ray.ray.intersectPlane(pl,dragV)) return; drag={pt,pl,s:root.worldToLocal(dragV.clone()),x0:pt.x,z0:pt.z}; controls.enabled=false; renderer.domElement.setPointerCapture(e.pointerId); p.sel=pt.id; });
+renderer.domElement.addEventListener('pointermove',e=>{ if(!drag) return; rayAt(e.clientX,e.clientY); if(!ray.ray.intersectPlane(drag.pl,dragV)) return; const q=root.worldToLocal(dragV.clone());
+  drag.pt.x=Math.round(drag.x0+q.x-drag.s.x); drag.pt.z=Math.round(drag.z0+q.z-drag.s.z); buildPart(drag.pt); requestRender(); });
+renderer.domElement.addEventListener('pointerup',e=>{ if(drag){ drag=null; controls.enabled=true; update(); fit(); return; } if(!downXY||Math.hypot(e.clientX-downXY[0],e.clientY-downXY[1])>4) return; const h=pick(e.clientX,e.clientY); if(!h) return;
+  const z=aliasZone(partById(h.m.userData.pid),h.m.userData.zone); if((e.ctrlKey||e.metaKey)&&h.m.userData.pid===p.sel){ p.cur=h.vi; toggleZone(z); setSec(SCHEMA.findIndex(s=>s.id==='finitura')); update(true); return; }
+  p.cur=h.vi; p.sel=h.m.userData.pid; p.zone=z; p.zsel=[]; setSec(SCHEMA.findIndex(s=>s.id==='finitura')); update(); });
 
 /* ---------- schema dell'interfaccia ---------- */
 // o: dove sta il valore — 'p' progetto, 'pt' pezzo scelto, 'g' misure del pezzo, 's' finitura della zona scelta nella variante attiva
@@ -900,7 +940,10 @@ const B=(id,l,icon,title,show)=>({type:'b',id,l,icon,title,show});
 const W=(id,render,show)=>({type:'w',id,render,show});
 const isK=k=>c=>c.pt&&c.pt.kind===k, isKs=(...ks)=>c=>c.pt&&ks.includes(c.pt.kind);
 const notMark=c=>c.F&&!c.F.segno, hasTex=c=>c.V&&(!!c.V.tex||c.F.cols==='tint'||c.F.cols==='photo');
-function ctx(){ const pt=selPart(); if(!pt) return {p}; let z=p.zone; const zs=zonesOf(pt); if(!zs.includes(z)) z=p.zone=zs[0]; z=aliasZone(pt,z); const s=specFor(p.cur,pt,z); return {p,pt,zone:z,s,F:famOf(s),V:varOf(s)}; }
+function ctx(){ const pt=selPart(); if(!pt) return {p}; let z=p.zone; const zs=zonesOf(pt); if(!zs.includes(z)) z=p.zone=zs[0]; z=aliasZone(pt,z); const s=specFor(p.cur,pt,z);
+  const sel=[z,...(p.zsel||[]).filter(x=>zs.includes(x)).map(x=>aliasZone(pt,x))].filter((v,i,a)=>a.indexOf(v)===i); return {p,pt,zone:z,s,F:famOf(s),V:varOf(s),sel}; }
+// le modifiche alla finitura valgono per tutte le parti scelte
+function eachSel(c,fn){ for(const z of c.sel||[c.zone]){ const s=specFor(p.cur,c.pt,z); fn(s,{...c,zone:z,s,F:famOf(s),V:varOf(s)}); } }
 const SCHEMA=[
  {t:'Banco di composizione', id:'banco', short:'Banco', sum:c=>`${p.parts.length} pezzi`+(c.pt?` · ${c.pt.name}`:''), f:[
    W('wParts',wParts), W('wAdd',wAdd),
@@ -923,8 +966,10 @@ const SCHEMA=[
    C('g','cap','Calotta con una finitura diversa',isK('manopola')), T('g','lab','Scritta sotto la manopola',isK('manopola'),'es. VOLUME'),
    R('g','D','Diametro esterno',20,500,1,'mm',isK('altoparlante')),
    S('g','tipo','Tipo',COMP,isK('componente')), C('g','on','LED acceso',c=>isK('componente')(c)&&c.pt.g.tipo==='led'), K('g','lc','Colore della luce',c=>isK('componente')(c)&&c.pt.g.tipo==='led'),
-   R('g','sc','Scala',0.01,100,0.01,'×',isK('stl')),
+   R('g','sc','Scala',0.01,100,0.01,'×',isK('stl')), S('g','up','Verticale nel file',{z:'Asse Z (Fusion, SolidWorks, Rhino, Onshape)',y:'Asse Y (Blender, alcuni CAD)'},isK('stl')),
    G('Posizione e rotazione',c=>!!c.pt), R('pt','x','Destra, sinistra',-1500,1500,0.5,'mm',c=>!!c.pt), R('pt','y','Su, giù',-1500,1500,0.5,'mm',c=>!!c.pt), R('pt','z','Avanti, indietro',-1500,1500,0.5,'mm',c=>!!c.pt),
+   B('bRotY','Gira di 90° sul piano','rotate','Ruota il pezzo attorno all\'asse verticale',c=>!!c.pt), B('bRotX','Ribalta di 90° (in piedi o sdraiato)','flip','Ruota il pezzo in avanti di 90°: se è arrivato sdraiato lo mette in piedi',c=>!!c.pt),
+   B('bFloor','Appoggia sul piano','floor','Porta la base del pezzo sul piano',c=>!!c.pt), W('wMoveHelp',()=>'<p class="help">Nella vista: Maiusc+trascina un pezzo per spostarlo sul piano.</p>',c=>!!c.pt),
    R('pt','rx','Inclina avanti',-180,180,1,'°',c=>!!c.pt), R('pt','ry','Gira sul posto',-180,180,1,'°',c=>!!c.pt), R('pt','rz','Ruota nel piano',-180,180,1,'°',c=>!!c.pt),
    B('bDup','Duplica il pezzo','copy','Una copia accanto, con le stesse finiture in tutte le varianti',c=>!!c.pt), B('bDel','Togli il pezzo dal banco','trash','Lo toglie da tutte le varianti',c=>!!c.pt) ]},
  {t:'Materiale e finitura', id:'finitura', short:'Finitura', sum:c=>c.s?`${c.pt.name} · ${zoneName(c.pt,c.zone)} · ${c.F.n}`:'', f:[
@@ -980,6 +1025,9 @@ const ICONS={
   varianti:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="16" rx="2"/><rect x="13" y="4" width="8" height="16" rx="2"/></svg>',
   produzione:'<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>',
   copy:'<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>',
+  rotate:'<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>',
+  flip:'<svg viewBox="0 0 24 24"><rect x="4" y="13" width="16" height="6" rx="1"/><path d="M8 10V5h5M8 5l6 6"/></svg>',
+  floor:'<svg viewBox="0 0 24 24"><rect x="8" y="4" width="8" height="10" rx="1"/><path d="M3 20h18M12 14v3"/></svg>',
   trash:'<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
   camera:'<svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
   layers:'<svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4"/></svg>',
@@ -998,9 +1046,14 @@ function dotsOf(pt){ const vi=p.cur; return zonesOf(pt).filter(z=>z!=='scritte'&
 function wParts(){ return `<div id="partList">${p.parts.map(pt=>`<button type="button" data-pid="${pt.id}" aria-pressed="${pt.id===p.sel}" title="${esc(KIND[pt.kind].n)}">${ICONS['k_'+pt.kind]}<span><b>${esc(pt.name)}</b><small>${esc(KIND[pt.kind].n)}${hidden(p.cur,pt)?' · non c\'è in questa variante':''}</small></span><span class="dots">${dotsOf(pt).map(c=>`<i style="--c:${c}"></i>`).join('')}</span></button>`).join('')||'<p class="help">Il banco è vuoto: aggiungi un pezzo, apri un file o scegli un modello.</p>'}</div>`; }
 function wAdd(){ return `<div class="grp" style="margin:4px 0 8px">Aggiungi sul banco</div><div class="addG">${['pannello','scatola','manopola','griglia','telaio','altoparlante','componente'].map(k=>`<button type="button" data-add="${k}" title="${esc(KIND[k].n)}">${({pannello:'Frontale',scatola:'Scatola o mobile',manopola:'Manopola',griglia:'Griglia in lamiera',telaio:'Griglia in tessuto',altoparlante:'Altoparlante',componente:'Componente'})[k]}</button>`).join('')}<button type="button" data-add="file" title="Un .stl qualsiasi, oppure il .json di una manopola o di una griglia salvate con Officina Manopole e Officina Griglie">Da file (STL, JSON)</button></div>`; }
 function wPresent(c){ return `<div class="f chk"><input id="f_present" type="checkbox" ${hidden(p.cur,c.pt)?'':'checked'}><label for="f_present">Presente nella variante ${esc(curV().name)}</label></div>`; }
-function wZone(c){ const pt=c.pt; return `<div class="f"><label for="f_selp">Pezzo</label><select id="f_selp">${p.parts.map(q=>`<option value="${q.id}" ${q.id===pt.id?'selected':''}>${esc(q.name)}</option>`).join('')}</select></div>
-  <div class="zones" role="group" aria-label="Zona del pezzo">${zonesOf(pt).map(z=>`<button type="button" data-zone="${z}" aria-pressed="${z===c.zone}">${esc(zoneName(pt,z))}</button>`).join('')}</div>
-  <p class="help" style="margin-top:6px">Variante <b>${esc(curV().name)}</b>${p.variants.length>1?' · si cambia nella linguetta Varianti':''}. ${esc(famOf(c.s).segno?'Il colore del segno laser dipende dalla finitura che sta sotto.':'')}</p>`; }
+function wZone(c){ const pt=c.pt, stl=pt.kind==='stl'&&pt.g.zones&&pt.g.zones.length>1, zq=stl?pt.g.zones.find(z=>z.k===c.zone):null, sel=c.sel||[c.zone];
+  return `<div class="f"><label for="f_selp">Pezzo</label><select id="f_selp">${p.parts.map(q=>`<option value="${q.id}" ${q.id===pt.id?'selected':''}>${esc(q.name)}</option>`).join('')}</select></div>
+  <div class="zones" role="group" aria-label="Parti del pezzo">${zonesOf(pt).map(z=>{ const q=stl?pt.g.zones.find(x=>x.k===z):null, col=colorOf(specFor(p.cur,pt,aliasZone(pt,z)));
+    return `<button type="button" data-zone="${z}" aria-pressed="${sel.includes(aliasZone(pt,z))}" title="${esc(q?q.n+(q.d?' · '+q.d:''):zoneName(pt,z))}">${stl?`<i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${col};box-shadow:0 0 0 1px rgba(0,0,0,.25);margin-right:6px;vertical-align:-1px"></i>`:''}${esc(zoneName(pt,z))}</button>`; }).join('')}</div>
+  ${stl?`<div class="zones" style="margin-top:8px"><button type="button" data-zsall="1" title="Sceglie tutte le parti di questo pezzo">Tutte</button><button type="button" data-zscol="1" title="Aggiunge le parti che nel CAD avevano lo stesso colore di questa">Stesso colore del CAD</button>${sel.length>1?'<button type="button" data-zsnone="1">Solo questa</button>':''}</div>
+    <div class="f" style="margin-top:10px"><label for="f_zname">Nome della parte</label><input id="f_zname" type="text" maxlength="40" value="${esc(zq?zq.n:'')}"><p class="help">${esc(zq&&zq.d?zq.d:'')}</p></div>`:''}
+  <p class="help" style="margin-top:6px">${sel.length>1?`<b>${sel.length} parti scelte</b>: le modifiche valgono per tutte. `:''}${zonesOf(pt).length>1?'Ctrl+clic (⌘ su Mac) su una parte, qui o nella vista, per sceglierne più d\'una. ':''}Variante <b>${esc(curV().name)}</b>${p.variants.length>1?', si cambia nella linguetta Varianti':''}.${famOf(c.s).segno?' Il colore del segno laser dipende dalla finitura che sta sotto.':''}</p>`; }
+function toggleZone(z){ const pt=selPart(); if(!pt) return; const all=[p.zone,...(p.zsel||[])]; if(all.includes(z)){ if(all.length<2) return; const rest=all.filter(x=>x!==z); p.zone=rest[0]; p.zsel=rest.slice(1); } else p.zsel=[...(p.zsel||[]),z]; }
 let ralQ='';
 function wColor(c){ const s=c.s, F=c.F, V=c.V, col=F.segno?markColor(s,baseOfMark(p.cur,c.pt,c.zone)):colorOf(s), nr=nearRAL(col);
   const cur=`<div class="cur"><b style="--c:${col}"></b><span>${col.toUpperCase()}${F.cols==='anod'?'':` · vicino a RAL ${nr.code} ${esc(nr.name)} (ΔE ${nf(nr.dE,1)})`}</span></div>`;
@@ -1029,7 +1082,10 @@ function onSet(f,c){ const s=c.s;
   if(f.o==='s'&&f.k==='var'){ fixRanges(s,true); }
   if(f.o==='s'&&f.k==='sub'){ const F=famOf(s); if(!F.segno&&(F.sub[s.sub]||0)===0){ const best=Object.keys(FAM).find(k=>!FAM[k].segno&&k!=='foto'&&FAM[k].sub[s.sub]===2); if(best){ s.fam=best; s.var=Object.keys(FAM[best].v)[0]; if(FAM[best].cols==='anod') s.anod='naturale'; if(FAM[best].cols==='tint') s.ess='noce'; fixRanges(s,true); say(`Su ${SUB[s.sub][0].toLowerCase()} la finitura di prima non si può fare: passo a ${FAM[best].n.toLowerCase()}.`); } } }
   if(f.o==='s'&&f.k==='code'){ const m=String(s.code||'').match(/(\d{4})/); if(m&&RAL[m[1]]) s.col=RAL[m[1]][1]; }
-  if(f.o==='g'&&c.pt.kind==='manopola'&&f.k==='D'&&c.pt.g.Dt>c.pt.g.D) c.pt.g.Dt=c.pt.g.D; }
+  if(f.o==='g'&&c.pt.kind==='manopola'&&f.k==='D'&&c.pt.g.Dt>c.pt.g.D) c.pt.g.Dt=c.pt.g.D;
+  if(f.o==='g'&&(f.k==='up'||f.k==='sc')) setTimeout(()=>settle(c.pt),0); }
+// porta la base del pezzo sul piano (quota 0)
+function settle(pt){ if(!pt) return; buildAll(); const e=PG.get(pt.id); if(!e) return; e.grp.updateMatrixWorld(true); const b=new THREE.Box3().setFromObject(e.grp); if(b.isEmpty()) return; pt.y=+(pt.y-b.min.y).toFixed(2); update(); fit(); }
 function fixRanges(s,resetGloss){ const V=varOf(s); if(V.gu&&(resetGloss||s.gu==null||s.gu<V.gu[0]||s.gu>V.gu[1])) s.gu=V.gu[2]; if(isMetal(s)&&(resetGloss||s.ra==null)) s.ra=V.ra; if(s.fam==='polvere'&&s.coat==null) s.coat=0.15; }
 function buildUI(){ const rootEl=$('controls'); rootEl.innerHTML='<nav id="rail" aria-label="Sezioni dei parametri"></nav><div id="secs"></div>';
   SCHEMA.forEach((sec,i)=>{ const tab=document.createElement('div'); tab.className='tab';
@@ -1042,18 +1098,18 @@ function buildUI(){ const rootEl=$('controls'); rootEl.innerHTML='<nav id="rail"
       const id='f_'+f.o+'_'+f.k+'_'+Object.keys(rows).length; row.className='f'+(f.type==='c'?' chk':'');
       if(f.type==='r'){ row.innerHTML=`<label for="${id}">${f.l}</label><span class="num"><input id="${id}" type="number" min="${f.min}" max="${f.max}" step="${f.step}"><i>${f.u||''}</i></span><input id="${id}_r" type="range" min="${f.min}" max="${f.max}" step="${f.step}" aria-label="${f.l}">`;
         const n=row.querySelector('input[type=number]'), r=row.querySelector('input[type=range]');
-        const set=v=>{ if(!isFinite(v)) return; const c=ctx(), o=tgt(f,c); if(!o) return; o[f.k]=v; n.value=v; r.value=v; onSet(f,c); update(); };
+        const set=v=>{ if(!isFinite(v)) return; const c=ctx(), o=tgt(f,c); if(!o) return; n.value=v; r.value=v; if(f.o==='s') eachSel(c,(s,cc)=>{ s[f.k]=v; onSet(f,cc); }); else { o[f.k]=v; onSet(f,c); } update(); };
         r.addEventListener('input',()=>set(+r.value)); n.addEventListener('change',()=>set(clamp(+n.value,+n.min,+n.max)));
         f.sync=c=>{ const o=tgt(f,c); if(!o) return; let mn=f.min, mx=f.max; if(f.o==='s'&&f.k==='gu'&&c.V&&c.V.gu){ mn=c.V.gu[0]; mx=c.V.gu[1]; } n.min=r.min=mn; n.max=r.max=mx; const v=o[f.k]??(f.k==='ts'||f.k==='tn'?1:f.k==='dir'?0:mn); n.value=+(+v).toFixed(3); r.value=v; };
       } else if(f.type==='s'){ row.innerHTML=`<label for="${id}">${f.l}</label><select id="${id}"></select>`; const s=row.querySelector('select'); let last='';
-        s.addEventListener('change',()=>{ const c=ctx(), o=tgt(f,c); o[f.k]=s.value; onSet(f,c); update(); });
+        s.addEventListener('change',()=>{ const c=ctx(), o=tgt(f,c); if(f.o==='s') eachSel(c,(q,cc)=>{ q[f.k]=s.value; onSet(f,cc); }); else { o[f.k]=s.value; onSet(f,c); } update(); });
         f.sync=c=>{ const o=tgt(f,c); if(!o) return; const opts=typeof f.opts==='function'?f.opts(c):f.opts, h=JSON.stringify(opts); if(h!==last){ s.innerHTML=Object.entries(opts).map(([v,t])=>`<option value="${v}">${esc(t)}</option>`).join(''); last=h; }
           if(f.ok) for(const op of s.options){ op.disabled=!f.ok(c,op.value); op.textContent=opts[op.value]+(op.disabled?' — non su questo materiale':''); }
           s.value=o[f.k]??''; };
       } else if(f.type==='t'){ row.innerHTML=`<label for="${id}">${f.l}</label><input id="${id}" type="text" maxlength="${f.k==='note'?300:60}" placeholder="${esc(f.ph||'')}">`; const t=row.querySelector('input');
-        t.addEventListener('input',()=>{ const c=ctx(), o=tgt(f,c); o[f.k]=t.value; onSet(f,c); update(true); }); f.sync=c=>{ const o=tgt(f,c); if(o&&document.activeElement!==t) t.value=o[f.k]??''; };
+        t.addEventListener('input',()=>{ const c=ctx(), o=tgt(f,c); if(f.o==='s') eachSel(c,(q,cc)=>{ q[f.k]=t.value; onSet(f,cc); }); else { o[f.k]=t.value; onSet(f,c); } update(f.o!=='s'); }); f.sync=c=>{ const o=tgt(f,c); if(o&&document.activeElement!==t) t.value=o[f.k]??''; };
       } else if(f.type==='k'){ row.innerHTML=`<label for="${id}">${f.l}</label><input id="${id}" type="color">`; const t=row.querySelector('input'); t.addEventListener('input',()=>{ const c=ctx(); tgt(f,c)[f.k]=t.value; update(); }); f.sync=c=>{ const o=tgt(f,c); if(o) t.value=o[f.k]; };
-      } else { row.innerHTML=`<input id="${id}" type="checkbox"><label for="${id}">${f.l}</label>`; const t=row.querySelector('input'); t.addEventListener('change',()=>{ const c=ctx(); tgt(f,c)[f.k]=t.checked; onSet(f,c); update(); }); f.sync=c=>{ const o=tgt(f,c); if(o) t.checked=!!o[f.k]; }; }
+      } else { row.innerHTML=`<input id="${id}" type="checkbox"><label for="${id}">${f.l}</label>`; const t=row.querySelector('input'); t.addEventListener('change',()=>{ const c=ctx(); if(f.o==='s') eachSel(c,(q,cc)=>{ q[f.k]=t.checked; onSet(f,cc); }); else { tgt(f,c)[f.k]=t.checked; onSet(f,c); } update(); }); f.sync=c=>{ const o=tgt(f,c); if(o) t.checked=!!o[f.k]; }; }
       if(HELP[f.k]) row.querySelector('label').title=HELP[f.k];
       rows[fid(f)+'#'+Object.keys(rows).length]={row,f,sec}; box.append(row); });
     sec.el=d; $('secs').append(d); }); }
@@ -1071,20 +1127,24 @@ function goTo(k,pid,zone){ if(pid){ p.sel=pid; if(zone) p.zone=zone; }
   const inp=r.querySelector('input:not([type=range]),select'); if(inp) inp.focus({preventScroll:true}); }
 // clic dentro i widget (l'HTML viene rifatto: gli eventi si prendono dal contenitore)
 $('controls').addEventListener('click',e=>{ const t=e.target.closest('button'); if(!t) return; const c=ctx(), d=t.dataset;
-  if(d.pid){ p.sel=d.pid; p.zone=''; update(true); return; }
+  if(d.pid){ p.sel=d.pid; p.zone=''; p.zsel=[]; update(true); return; }
   if(d.add){ if(d.add==='file'){ $('file').click(); return; } addPart(d.add); return; }
-  if(d.zone){ p.zone=d.zone; update(true); return; }
-  if(d.anod){ c.s.anod=d.anod; update(); return; }
-  if(d.ral){ c.s.col=RAL[d.ral][1]; c.s.code='RAL '+d.ral; update(); return; }
+  if(d.zone){ if(e.ctrlKey||e.metaKey||e.shiftKey) toggleZone(d.zone); else { p.zone=d.zone; p.zsel=[]; } update(true); return; }
+  if(d.zsall){ p.zsel=zonesOf(c.pt).filter(z=>z!==c.zone); update(true); return; }
+  if(d.zscol){ const zz=c.pt.g.zones||[], cc=(zz.find(z=>z.k===c.zone)||{}).c; p.zsel=zz.filter(z=>z.k!==c.zone&&z.c&&z.c===cc).map(z=>z.k); update(true); return; }
+  if(d.zsnone){ p.zsel=[]; update(true); return; }
+  if(d.anod){ eachSel(c,s=>{ if(famOf(s).cols==='anod') s.anod=d.anod; }); update(); return; }
+  if(d.ral){ eachSel(c,s=>{ s.col=RAL[d.ral][1]; s.code='RAL '+d.ral; }); update(); return; }
   if(d.vsel!=null){ p.cur=+d.vsel; update(); return; }
   if(d.vdup!=null){ if(p.variants.length>=4) return; const v=clone(p.variants[+d.vdup]); v.name=v.name.replace(/^([A-D])\b/,'')||'Copia'; const L=String.fromCharCode(65+p.variants.length); v.name=L+' · '+(p.variants[+d.vdup].name.replace(/^[A-D]\s*·\s*/,'')||'copia'); p.variants.push(v); p.cur=p.variants.length-1; update(); return; }
   if(d.vdel!=null){ if(p.variants.length<=1) return; p.variants.splice(+d.vdel,1); p.cur=clamp(p.cur,0,p.variants.length-1); if(p.variants.length<2) p.side=false; update(); return; } });
 $('controls').addEventListener('change',e=>{ const t=e.target;
-  if(t.id==='f_selp'){ p.sel=t.value; p.zone=''; update(true); }
+  if(t.id==='f_selp'){ p.sel=t.value; p.zone=''; p.zsel=[]; update(true); }
   if(t.id==='f_env'){ p.env=t.value; update(); }
   if(t.id==='f_present'){ const v=curV(), pt=selPart(); v.hide=(v.hide||[]).filter(x=>x!==pt.id); if(!t.checked) v.hide.push(pt.id); update(); } });
 $('controls').addEventListener('input',e=>{ const t=e.target, c=ctx();
-  if(t.id==='f_col'){ c.s.col=t.value; const n=nearRAL(t.value); c.s.code=n.dE<1?'RAL '+n.code:''; update(); }
+  if(t.id==='f_col'){ const n=nearRAL(t.value); eachSel(c,s=>{ s.col=t.value; s.code=n.dE<1?'RAL '+n.code:''; }); update(); }
+  if(t.id==='f_zname'){ const q=(c.pt.g.zones||[]).find(z=>z.k===c.zone); if(q){ q.n=t.value; update(true); } }
   if(t.id==='f_ralq'){ ralQ=t.value; syncUI(); }
   if(t.dataset.vname!=null){ p.variants[+t.dataset.vname].name=t.value; update(true); } });
 function addPart(kind,o){ const pt=newPart(kind,o); const b=sceneBox(); if(!o&&p.parts.length){ pt.x=+(b.max.x+40+(KIND[kind].g.W||KIND[kind].g.D||30)/2).toFixed(0); }
@@ -1226,7 +1286,7 @@ function report(){ const vi=p.cur, Z=zonesIn(vi), solid=Z.filter(r=>!r.mark), to
   const byCol=new Map(); for(const r of solid){ let k=[...byCol.keys()].find(c=>dE00(c,r.col)<4); if(!k){ k=r.col; byCol.set(k,{a:0,n:[]}); } const e=byCol.get(k); e.a+=r.area; e.n.push(r); }
   const C=[...byCol.entries()].sort((a,b)=>b[1].a-a[1].a);
   $('palette').innerHTML=C.map(([c,e])=>`<i style="--c:${c};width:${e.a/tot*100}%" title="${esc(e.n.map(labelOf).join(', '))}" data-go="${e.n[0].pt.id}|${e.n[0].zone}|s.fam"></i>`).join('');
-  $('palLeg').innerHTML=C.map(([c,e])=>{ const r=e.n[0]; const nm=r.F.cols==='anod'?(ANOD[r.s.anod]||ANOD.naturale)[0]:r.s.code||r.F.n; return `<span><b style="--c:${c}"></b>${esc(nm)} ${nf(e.a/tot*100,0)} %</span>`; }).join('');
+  $('palLeg').innerHTML=C.map(([c,e])=>{ const r=e.n[0]; const nm=r.F.cols==='anod'?(ANOD[r.s.anod]||ANOD.naturale)[0]:r.s.code||(['ral','free'].includes(r.F.cols)?'≈ RAL '+nearRAL(c).code:r.F.cols==='tint'?ESS[r.s.ess||'noce'][0]:r.F.n); return `<span><b style="--c:${c}"></b>${esc(nm)} ${nf(e.a/tot*100,0)} %</span>`; }).join('');
   $('tips').innerHTML=tips(vi,Z).map(t=>`<li><b>${esc(t.t)} <em class="${t.v}">${LVL[t.v]}</em></b>${t.h}</li>`).join('');
   $('checks').innerHTML=checks(vi,Z).map(c=>`<li class="${c.lvl}" ${c.go?`data-go="${c.go.pid}|${c.go.zone}|${c.go.f}" tabindex="0"`:''}><span class="tag">${LVL[c.lvl]}</span><span>${c.html}</span></li>`).join('');
   $('costs').innerHTML=`<tr><th>Pezzo e finitura</th><th>dm²</th><th>€/pz</th></tr>`+Co.rows.map(x=>`<tr><td>${esc(labelOf(x.r))}<small>${esc(x.r.F.n)}, ${esc(x.r.V.n.toLowerCase())}</small></td><td>${x.r.mark?'—':nf(x.dm2,2)}</td><td>${nf(x.per,2)}</td></tr>`).join('')
@@ -1273,24 +1333,34 @@ function download(blob,name){
 const fileBase=()=>(p.codice||p.nome||'finiture').replace(/[^\w\-àèéìòù ]+/gi,'').trim().replace(/\s+/g,'_')||'finiture';
 function packMeshes(){ const out={}; for(const pt of p.parts){ if(pt.kind!=='stl') continue; const M=MESHES[pt.g.mesh]; if(!M||out[pt.g.mesh]) continue; const P=M.pos, mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9];
     for(let i=0;i<P.length;i+=3) for(let k=0;k<3;k++){ mn[k]=Math.min(mn[k],P[i+k]); mx[k]=Math.max(mx[k],P[i+k]); } const sz=mx.map((v,k)=>Math.max(1e-6,v-mn[k])), q=new Uint16Array(P.length);
-    for(let i=0;i<P.length;i++) q[i]=Math.round((P[i]-mn[i%3])/sz[i%3]*65535); out[pt.g.mesh]={mn,sz,q:b64e(new Uint8Array(q.buffer))}; } return out; }
-function unpackMeshes(o){ for(const id in o||{}){ const m=o[id], u=b64d(m.q), q=new Uint16Array(u.buffer,u.byteOffset,u.byteLength/2), P=new Float32Array(q.length); for(let i=0;i<q.length;i++) P[i]=m.mn[i%3]+q[i]/65535*m.sz[i%3]; MESHES[id]={pos:P}; } }
+    for(let i=0;i<P.length;i++) q[i]=Math.round((P[i]-mn[i%3])/sz[i%3]*65535); out[pt.g.mesh]={mn,sz,q:b64e(new Uint8Array(q.buffer)),z:M.zid?b64e(M.zid):''}; } return out; }
+function unpackMeshes(o){ for(const id in o||{}){ const m=o[id], u=b64d(m.q), q=new Uint16Array(u.buffer,u.byteOffset,u.byteLength/2), P=new Float32Array(q.length); for(let i=0;i<q.length;i++) P[i]=m.mn[i%3]+q[i]/65535*m.sz[i%3]; MESHES[id]={pos:P,zid:m.z?b64d(m.z):null}; } }
 $('bSave').onclick=()=>download(new Blob([JSON.stringify({...p,ver:VER,meshes:packMeshes()},null,1)],{type:'application/json'}),fileBase()+'.json');
 $('bLoad').onclick=()=>$('file').click();
 $('file').addEventListener('change',e=>{ openFiles([...e.target.files]); e.target.value=''; });
 stage.addEventListener('dragover',e=>{ e.preventDefault(); }); stage.addEventListener('drop',e=>{ e.preventDefault(); openFiles([...e.dataTransfer.files]); });
 function migrate(j){ const q={...clone(DEFP),...j}; delete q.meshes; delete q.ver; q.variants=(q.variants&&q.variants.length?q.variants:[{name:'A',asg:{},hide:[]}]).map(v=>({hide:[],asg:{},...v})); for(const pt of q.parts) pt.g={...KIND[pt.kind].g,...pt.g}; return q; }
-async function openFiles(files){ const added=[];
+async function openFiles(files){ const added=[], notes=[];
+  const stl=files.filter(f=>/\.stl$/i.test(f.name)); files=files.filter(f=>!/\.stl$/i.test(f.name));
+  if(stl.length){ say('Leggo '+stl.map(f=>f.name).join(', ')+'…'); await new Promise(r=>setTimeout(r,30)); const R=[];
+    for(const f of stl){ try{ R.push({f,...parseSTL(await f.arrayBuffer())}); }catch(err){ say(`${f.name}: file non valido (${err.message||err}).`); } }
+    if(R.length){ const mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9]; for(const r of R) for(let i=0;i<r.pos.length;i+=3) for(let k=0;k<3;k++){ const v=r.pos[i+k]; if(v<mn[k]) mn[k]=v; if(v>mx[k]) mx[k]=v; }
+      const c=mn.map((v,k)=>(v+mx[k])/2); for(const r of R) for(let i=0;i<r.pos.length;i+=3) for(let k=0;k<3;k++) r.pos[i+k]-=c[k];
+      // i CAD (Fusion, SolidWorks, Rhino, Onshape) esportano con l'asse Z verso l'alto: lo raddrizzo; si cambia nel Banco
+      const up='z', floorY=-(mn[2]-c[2]); let x0=0; if(p.parts.length){ buildAll(); x0=Math.round(sceneBox().max.x+40+(mx[0]-mn[0])/2); }
+      for(const r of R){ const A=analyzeSTL(r.pos,r.col,up), id=uid(); MESHES[id]={pos:r.pos,zid:A.zid}; const nm=r.f.name.replace(/\.stl$/i,'');
+        const pt=newPart('stl',{name:nm,x:x0,y:+floorY.toFixed(2),g:{mesh:id,file:r.f.name,up,zones:A.zones}}); p.parts.push(pt); for(let vi=0;vi<p.variants.length;vi++) for(const z of zonesOf(pt)) specFor(vi,pt,z); added.push(pt);
+        notes.push(A.bodies>1?`${nm}: ${A.bodies} corpi separati → ${A.zones.length} parti${A.bodies>A.zones.length?' (le copie identiche sono unite)':''}`+(r.col?', con i colori del CAD':''):`${nm}: un corpo solo`);
+        if(r.pos.length/9>400000) notes.push(`${nf(r.pos.length/9,0)} triangoli: la vista può rallentare`); } } }
   for(const f of files){ try{
-      if(/\.stl$/i.test(f.name)){ const pos=parseSTL(await f.arrayBuffer()); const id=uid(); MESHES[id]={pos}; const nm=f.name.replace(/\.stl$/i,''); const pt=placeNew(newPart('stl',{name:nm,g:{mesh:id,file:f.name}}));
-        if(pos.length/9>400000) say(`${nm}: ${nf(pos.length/9,0)} triangoli, la vista può rallentare.`); added.push(pt); continue; }
       const j=JSON.parse(await f.text());
       if(j.officina==='finiture'){ unpackMeshes(j.meshes); p=migrate(j); await loadSamples(); update(); fit(); say(`Aperto il progetto ${p.nome}.`); return; }
       if('pat' in j&&'pitch' in j){ added.push(fromGriglie(j,f.name)); continue; }
       if('grip' in j||('kind' in j&&'H' in j&&'D' in j)){ added.push(fromManopole(j,f.name)); continue; }
       say(`${f.name}: non riconosco il file. Apro progetti di Officina Finiture, Manopole e Griglie (.json) e file .stl.`); }
     catch(err){ console.error(err); say(`${f.name}: file non valido (${err.message||err}).`); } }
-  if(added.length){ p.sel=added[added.length-1].id; p.zone=''; setSec(0); update(); fit(); say(`Sul banco: ${added.map(a=>a.name).join(', ')}. ${added.length>1?'Si spostano':'Si sposta'} con «Posizione e rotazione».`); } }
+  if(added.length){ p.sel=added[added.length-1].id; p.zone=''; p.zsel=[]; const isS=added.some(a=>a.kind==='stl'&&a.g.zones&&a.g.zones.length>1); setSec(isS?1:0); update(); fit();
+    say((notes.length?notes.join('. ')+'. ':'')+(isS?'Clic su una parte per vestirla, Ctrl+clic per sceglierne più d\'una. ':'')+'Maiusc+trascina sposta il pezzo sul piano.'); } }
 function placeNew(pt){ if(p.parts.length){ buildAll(); const b=sceneBox(); pt.x=Math.round(b.max.x+40+(pt.kind==='griglia'?gridBox(pt.g)[0]/2:pt.kind==='manopola'?pt.g.D/2:0)); } p.parts.push(pt); for(let vi=0;vi<p.variants.length;vi++) for(const z of Object.keys(KIND[pt.kind].zones)) specFor(vi,pt,z); return pt; }
 const nearAnod=h=>Object.entries(ANOD).sort((a,b)=>dE00(h,a[1][1])-dE00(h,b[1][1]))[0][0];
 function fromGriglie(j,fn){ const shape=['tonda','stadio'].includes(j.shape)?j.shape:'rett', pat=PAT[j.pat]?j.pat:'tondi60';
@@ -1535,7 +1605,11 @@ function wire(){ const B=id=>btns[id]&&btns[id].row;
   B('bFoto').onclick=()=>{ $('fotoDlg').showModal(); fotoDraw(); };
   B('bCopyAll').onclick=()=>{ const c=ctx(); let n=0; for(const q of p.parts) if(q.kind===c.pt.kind&&q.id!==c.pt.id){ const v=curV(); v.asg[q.id]=v.asg[q.id]||{}; v.asg[q.id][c.zone]=clone(c.s); n++; } update(); say(n?`Copiata su ${n} ${n>1?'pezzi':'pezzo'}.`:'Non ci sono altri pezzi dello stesso tipo.'); };
   B('bCopyVar').onclick=()=>{ const c=ctx(); p.variants.forEach((v,i)=>{ if(i===p.cur) return; v.asg[c.pt.id]=v.asg[c.pt.id]||{}; v.asg[c.pt.id][c.zone]=clone(c.s); }); update(); say('Copiata in tutte le varianti.'); };
-  B('bScheda2').onclick=openScheda; }
+  B('bScheda2').onclick=openScheda;
+  const wrap=a=>((a+180)%360+360)%360-180;
+  B('bRotY').onclick=()=>{ const pt=selPart(); if(!pt) return; pt.ry=wrap(pt.ry+90); update(); fit(); };
+  B('bRotX').onclick=()=>{ const pt=selPart(); if(!pt) return; pt.rx=wrap(pt.rx-90); settle(pt); };
+  B('bFloor').onclick=()=>settle(selPart()); }
 
 /* ---------- avvio ---------- */
 function loadLocal(){ try{ const s=JSON.parse(localStorage.getItem('finiture')||'null'); if(!s||!s.parts) return false; try{ unpackMeshes(JSON.parse(localStorage.getItem('finiture_mesh')||'{}')); }catch(e){} p=migrate(s); return true; }catch(e){ return false; } }

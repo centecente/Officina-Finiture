@@ -6,7 +6,7 @@ centro, scheda a destra, fondo grigio con rilievi morbidi); ogni officina ha il 
 
 Strumento CMF (Color, Material, Finish): si mettono sul banco i pezzi fatti con le altre officine, o frontali e mobili
 semplici, e li si «veste» con materiali e finiture reali, si confrontano le varianti sotto luci diverse e si esporta una
-scheda per il cliente o per il fornitore. Versione 1.0.0.
+scheda per il cliente o per il fornitore. Versione 1.1.0.
 
 ## File
 
@@ -32,6 +32,15 @@ scheda per il cliente o per il fornitore. Versione 1.0.0.
   griglie in lamiera (rettangolari, tonde, a stadio; cinque forature; bombatura), griglie in tessuto su telaio,
   altoparlanti, componenti (footswitch, levetta, LED acceso, jack, piedino). Posizione e rotazione di ogni pezzo,
   duplica, togli.
+- **STL divisi in parti** (dalla 1.1.0): i corpi separati dentro un STL (mobile, cono, cestello, viti...) diventano parti
+  che si scelgono e si vestono una per una; le copie identiche (stesso numero di triangoli, stesse misure, stesso colore)
+  diventano una parte sola «(× 6)»; oltre 32 parti, le più piccole si raccolgono in «Altre parti piccole». Se l'STL ha i
+  colori per faccia (Materialise, SolidWorks, VisCAM) ogni parte parte dal suo colore del CAD. Le parti si rinominano.
+  Ctrl+clic (⌘ su Mac), sui pulsanti o nella vista, sceglie più parti insieme: ogni modifica vale per tutte; «Tutte» e
+  «Stesso colore del CAD» per sceglierle in un colpo. Più STL aperti insieme restano nelle posizioni del CAD.
+- **Verticale del file**: gli STL nuovi si leggono con l'asse Z verso l'alto (Fusion, SolidWorks, Rhino, Onshape) e
+  arrivano in piedi sul piano; nel Banco si passa ad asse Y. Pulsanti «Gira di 90° sul piano», «Ribalta di 90°»,
+  «Appoggia sul piano»; nella vista Maiusc+trascina sposta un pezzo sul piano.
 - **Pezzi dalle altre officine** («Apri» o trascinando il file sulla vista): `.stl` qualsiasi (normali morbide sotto i 35°,
   spigoli vivi sopra), `.json` di Officina Manopole (diventa una manopola con le stesse misure) e di Officina Griglie
   (contorno, foro, passo, foratura, spessore, materiale e finitura). Le maniglie a T e i galletti di Manopole vanno portati
@@ -113,6 +122,9 @@ Tutto in `finiture.html`, un solo `<script type="module">`, che usa solo three.j
 - Calcoli: `zonesIn` (zone visibili con la superficie vera), `checks`, `tips`, `costs`, `report`.
 - File: `openFiles`, `fromGriglie`, `fromManopole`, `packMeshes`; immagini `shot`; scheda `schedaHTML`;
   campione `fotoAnalyze`, `photoTex`; modelli `TPL`.
+- STL: `parseSTL` (anche i colori per faccia), `weld` (vertici coincidenti con una tabella sui bit dei float),
+  `creased`, `analyzeSTL` (corpi separati con union-find, copie identiche unite); `eachSel` applica una modifica a tutte
+  le parti scelte; `settle` appoggia un pezzo sul piano.
 - `window.__fin`: aggancio per le prove automatiche.
 
 ## Stato delle verifiche
@@ -130,7 +142,15 @@ Versione 1.0.0, provata in Chromium (WebGL software) con script automatici:
 - Non provato: la pagina con le librerie da jsDelivr (dalla macchina di prova il CDN non si raggiunge; è lo stesso
   importmap di Griglie), il salvataggio dentro Claude, la stampa in PDF da Edge.
 
+- 1.1.0, con il cabinet di Filippo (STL di 20 MB, 404.698 triangoli, 40 corpi, colori del CAD): letto in meno di un secondo,
+  31 parti (6 pannelli uguali uniti in una), in piedi sul piano; scelta di più parti, rotazione, appoggio, trascinamento,
+  scheda, salvataggio (JSON di 10 MB) e riapertura con le stesse parti, anche nella versione senza rete.
+
 ## Da fare o da controllare
+
+- Le parti degli STL si chiamano «Parte 1, 2...» in ordine di superficie: vanno rinominate a mano. Con 3MF o OBJ si
+  potrebbero leggere i nomi dati nel CAD.
+- Con centinaia di migliaia di triangoli il passaggio del puntatore resta un po' lento (nessuna struttura di accelerazione).
 
 - Confrontare i colori a schermo con la mazzetta RAL e con campioni di anodizzazione veri, sotto D65: i valori sRGB dei
   RAL sono quelli pubblicati, ma lo schermo non è calibrato.
