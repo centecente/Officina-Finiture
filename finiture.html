@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Officina Finiture</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600&display=swap">
+<style>
+/* Terza officina della suite, sorella di Manopole e Griglie: stesso banco a tre colonne (linguette e parametri a sinistra,
+   pezzo al centro, scheda a destra), stesso fondo grigio con rilievi e incavi morbidi. Ogni officina ha il suo colore:
+   qui il prugna. In rilievo ciò che si preme, incavato ciò che si riempie, pieno ciò che è attivo. */
+:root{
+  --bg:#e3e4e7; --panel:#e3e4e7; --stage:#d9dade; --well:#d9dade; --hi:#ffffff; --lo:#b3b7c0; --line:#c2c5cc; --fg:#24272d; --muted:#535862;
+  --accent:#7d3c6b; --accent-fg:#ffffff; --ok:#1c7c45; --warn:#9a5c00; --err:#b3261e; --info:#535862;
+  --grid:#b6bac3; --cut:#d9480f;
+  --up:3px 3px 7px var(--lo),-3px -3px 7px var(--hi); --down:inset 2px 2px 5px var(--lo),inset -2px -2px 5px var(--hi);
+  --sans:"IBM Plex Sans",system-ui,"Segoe UI",sans-serif;
+  --cond:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.4 var(--sans);display:flex;flex-direction:column}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+h1{font:600 20px/1 var(--cond);letter-spacing:.04em;text-transform:uppercase;margin:0}
+h1 span{color:var(--accent)}
+h1 small{font:500 11px var(--mono);color:var(--muted);letter-spacing:0;text-transform:none;margin-left:4px}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-left:auto}
+button,select,input,textarea{font:inherit;color:inherit}
+button,.btn{background:var(--bg);border:0;border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:500;box-shadow:var(--up)}
+button:hover,.btn:hover{color:var(--accent)}
+button:active{box-shadow:var(--down)}
+button.primary{background:var(--accent);color:var(--accent-fg);font-weight:600}
+button.primary:hover{color:var(--accent-fg);filter:brightness(1.1)}
+button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+button:disabled{opacity:.45;cursor:default;box-shadow:none;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select,input[type=number],input[type=text],input[type=search],textarea{background:var(--well);border:1px solid var(--line);border-radius:8px;padding:5px 7px;box-shadow:var(--down)}
+main{flex:1;min-height:0;display:grid;grid-template-columns:400px minmax(0,1fr) 350px}
+aside{background:var(--panel);min-width:0}
+#controls{border-right:1px solid var(--line);display:flex;min-height:0}
+#report{border-left:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:18px;overflow-y:auto}
+#rail{flex:none;width:86px;padding:14px 0;display:flex;flex-direction:column;align-items:center;gap:10px;border-right:1px solid var(--line);overflow-y:auto}
+.tab{display:flex;flex-direction:column;align-items:center;gap:5px;width:78px;font:600 11px/1.15 var(--cond);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);text-align:center}
+.tab[data-on="true"]{color:var(--accent)}
+.tab button{width:46px;height:46px;padding:0;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
+.tab button[aria-pressed="true"]{color:var(--accent-fg);box-shadow:2px 3px 7px var(--lo)}
+.tab svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#secs{flex:1;min-width:0;overflow-y:auto;padding:14px 14px 24px}
+.secT{font:600 17px/1.1 var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:2px 2px 0}
+.secS{font:12.5px var(--mono);color:var(--muted);margin:4px 2px 12px;min-height:1.2em}
+.fields{padding:16px 14px;display:flex;flex-direction:column;gap:13px;border-radius:16px;background:var(--bg);box-shadow:5px 5px 12px var(--lo),-5px -5px 12px var(--hi)}
+.grp{font:600 12px var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:6px 0 -4px;padding-top:10px;border-top:1px solid var(--line)}
+.grp:first-child{border-top:0;padding-top:0;margin-top:0}
+#stage{position:relative;background:var(--stage);min-height:0;min-width:0;overflow:hidden}
+#stage canvas{display:block;width:100%;height:100%}
+#dims{position:absolute;left:14px;bottom:12px;font:500 13px var(--mono);color:var(--muted);pointer-events:none;text-shadow:0 0 6px rgba(255,255,255,.4)}
+#stage[data-dark="true"] #dims,#stage[data-dark="true"] #msg{color:#c9ccd2;text-shadow:none}
+#viewbar{position:absolute;right:12px;top:12px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;align-items:center;max-width:70%}
+#vLab{position:absolute;inset:0;pointer-events:none}
+#vLab div{position:absolute;font:600 12px/1.2 var(--cond);letter-spacing:.06em;text-transform:uppercase;background:var(--bg);color:var(--fg);padding:4px 9px;border-radius:999px;box-shadow:1px 2px 5px rgba(0,0,0,.25)}
+#vLab div.on{background:var(--accent);color:var(--accent-fg)}
+#vLab i{position:absolute;background:rgba(127,127,127,.35)}
+#hint{position:absolute;left:0;top:0;pointer-events:none;font:500 13px/1.2 var(--sans);background:var(--accent);color:var(--accent-fg);padding:5px 10px;border-radius:999px;white-space:nowrap;box-shadow:2px 3px 8px var(--lo);z-index:2}
+#hint small{font-weight:400;opacity:.9}
+#msg{position:absolute;left:14px;top:12px;font-size:13px;color:var(--warn);max-width:46%}
+.f{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 8px;align-items:center;border-radius:6px;transition:box-shadow .25s}
+.f label{font-size:14px}
+.f label[title]{text-decoration:underline dotted var(--muted);text-underline-offset:3px;cursor:help}
+.f.hl{box-shadow:0 0 0 2px var(--accent),0 0 0 7px color-mix(in srgb,var(--accent) 22%,transparent)}
+.f .num{display:flex;align-items:center;gap:4px;font:13px var(--mono)}
+.f .num input{width:68px;text-align:right;font:13px var(--mono)}
+.f .num i{font-style:normal;color:var(--muted);width:30px}
+.f input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--accent);margin:0}
+.f select{max-width:190px}
+.f input[type=text]{width:150px}
+.f.chk{grid-template-columns:auto 1fr;justify-content:start;gap:10px}
+.f.chk input{appearance:none;width:38px;height:22px;border-radius:999px;margin:0;cursor:pointer;background:var(--well);box-shadow:var(--down);position:relative;transition:background .15s;flex:none}
+.f.chk input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--bg);box-shadow:1px 1px 3px var(--lo);transition:left .15s}
+.f.chk input:checked{background:var(--accent)}
+.f.chk input:checked::after{left:19px}
+.f input[type=color]{width:44px;height:28px;padding:2px;border:1px solid var(--line);border-radius:8px;background:var(--well);cursor:pointer}
+.f .sw{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;padding:2px}
+.f .sw button{width:26px;height:26px;padding:0;border-radius:50%;background:var(--c);position:relative}
+.f .sw button[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:2px}
+.f .sw button.uv::after{content:"";position:absolute;right:-2px;top:-2px;width:8px;height:8px;border-radius:50%;background:var(--warn);border:1.5px solid var(--bg)}
+.f .ralq{grid-column:1/-1;display:flex;gap:8px;align-items:center}
+.f .ralq input{flex:1;width:auto}
+.f .ralg{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(30px,1fr));gap:6px;max-height:156px;overflow-y:auto;padding:4px;border-radius:10px;background:var(--well);box-shadow:var(--down)}
+.f .ralg button{height:28px;padding:0;border-radius:7px;background:var(--c);box-shadow:1px 1px 3px var(--lo)}
+.f .ralg button[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:1px}
+.f .cur{grid-column:1/-1;display:flex;gap:10px;align-items:center;font:12.5px var(--mono);color:var(--muted)}
+.f .cur b{width:34px;height:22px;border-radius:6px;background:var(--c);box-shadow:var(--down);flex:none}
+.f .help{grid-column:1/-1;font-size:12.5px;color:var(--muted);margin:0}
+.wide{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;font-weight:600}
+.wide svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+/* elenco dei pezzi sul banco */
+#partList{display:flex;flex-direction:column;gap:7px}
+#partList button{display:grid;grid-template-columns:22px 1fr auto;gap:9px;align-items:center;text-align:left;border-radius:12px;padding:7px 10px;font-size:13.5px}
+#partList button b{font-weight:600}
+#partList button small{display:block;color:var(--muted);font-size:12px;font-weight:400}
+#partList button[aria-pressed="true"] small{color:var(--accent-fg);opacity:.85}
+#partList .dots{display:flex;gap:3px}
+#partList .dots i{width:12px;height:12px;border-radius:50%;background:var(--c);box-shadow:0 0 0 1px rgba(0,0,0,.18)}
+#partList svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.zones{display:flex;flex-wrap:wrap;gap:6px}
+.zones button{padding:5px 11px;font-size:13px}
+.addG{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.addG button{padding:7px 8px;font-size:13px}
+dialog{background:var(--bg);color:var(--fg);border:0;border-radius:18px;padding:18px;width:min(940px,94vw);max-height:90vh;box-shadow:0 18px 50px rgba(40,44,54,.35)}
+dialog::backdrop{background:rgba(40,44,54,.45)}
+.galHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:10px;flex-wrap:wrap}
+.galHead h2{margin:0;color:var(--fg);font-size:15px}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-top:14px;padding:4px}
+.gal button{display:flex;flex-direction:column;gap:6px;padding:8px 8px 10px;text-align:left;font-size:13px;line-height:1.25;border-radius:14px}
+.gal .card{display:flex;flex-direction:column;gap:6px;min-width:0}
+.gal button.del{flex-direction:row;align-self:flex-start;font-size:12px;padding:3px 10px;border-radius:999px}
+.gal img{width:100%;height:auto;aspect-ratio:4/3;background:var(--stage);border-radius:9px;display:block}
+.gal small{color:var(--muted)}
+h2{font:600 13px var(--cond);letter-spacing:.08em;text-transform:uppercase;margin:0 0 9px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--well);box-shadow:var(--down);border-radius:12px;padding:9px 11px;min-width:0}
+.stat b{display:block;font:500 18px/1.2 var(--mono);font-variant-numeric:tabular-nums}
+.stat small{color:var(--muted);font-size:12.5px}
+.stat.big{grid-column:1/-1}
+.stat.big b{font-size:24px;color:var(--accent)}
+.stat.w{grid-column:1/-1}
+#checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+#checks li{display:grid;grid-template-columns:56px 1fr;gap:9px;font-size:14px;align-items:start}
+#checks .tag{font:500 10.5px/1 var(--mono);text-transform:uppercase;letter-spacing:.05em;padding:5px 0;text-align:center;border-radius:999px;border:1px solid currentColor;margin-top:1px}
+.ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)} .info{color:var(--info)}
+#checks li span:last-child{color:var(--fg)}
+#checks li b{font-weight:600}
+#checks li[data-k]{cursor:pointer;border-radius:6px}
+#checks li[data-k]:hover span:last-child{text-decoration:underline;text-decoration-color:var(--muted);text-underline-offset:3px}
+#tips{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+#tips>li{background:var(--bg);border-radius:12px;padding:10px 12px;box-shadow:var(--up);font-size:13.5px}
+#tips>li>b:first-child{display:flex;justify-content:space-between;gap:8px;font:600 13px var(--cond);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+#tips>li>b:first-child em{font:500 10.5px/1 var(--mono);font-style:normal;letter-spacing:.05em;padding:4px 7px;border-radius:999px;border:1px solid currentColor}
+#tips .gbar{position:relative;height:26px;border-radius:8px;background:var(--well);box-shadow:var(--down);margin:8px 0 4px}
+#tips .gbar i{position:absolute;top:4px;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:var(--c);box-shadow:0 0 0 1.5px var(--bg),1px 1px 3px rgba(0,0,0,.35)}
+#tips .gbar u{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--line) 45%,transparent);border-left:1px dashed var(--lo)}
+#tips .scale{display:flex;justify-content:space-between;font:11px var(--mono);color:var(--muted)}
+#tips ul{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+#tips li li[data-k]{cursor:pointer;text-decoration:underline dotted var(--muted);text-underline-offset:3px}
+#tips li li[data-k]:hover{color:var(--accent)}
+#palette{display:flex;height:34px;border-radius:10px;overflow:hidden;box-shadow:var(--down)}
+#palette i{display:block;height:100%;min-width:3px;background:var(--c);cursor:pointer}
+#palLeg{display:flex;flex-wrap:wrap;gap:4px 12px;font:12px var(--mono);color:var(--muted);margin-top:7px}
+#palLeg span{display:flex;gap:5px;align-items:center}
+#palLeg span b{width:10px;height:10px;border-radius:3px;background:var(--c);box-shadow:0 0 0 1px rgba(0,0,0,.2)}
+#costs{border-collapse:collapse;font-size:12.5px;width:100%}
+#costs th{font:600 11px var(--cond);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:right;padding:4px 4px;border-bottom:1px solid var(--line)}
+#costs th:first-child,#costs td:first-child{text-align:left}
+#costs td{padding:5px 4px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;vertical-align:top}
+#costs td small{display:block;color:var(--muted)}
+#costs tr.tot td{font-weight:600;border-bottom:0}
+.note{font-size:12.5px;color:var(--muted);margin:0}
+/* campione da foto */
+#fotoBox{position:relative;margin-top:12px;border-radius:12px;overflow:hidden;background:var(--well);box-shadow:var(--down);min-height:200px;display:grid;place-items:center;touch-action:none}
+#fotoBox canvas{max-width:100%;max-height:52vh;display:block;cursor:crosshair}
+#fotoRes{display:grid;grid-template-columns:132px 1fr;gap:14px;margin-top:14px;align-items:start}
+#fotoRes canvas{width:132px;height:132px;border-radius:10px;box-shadow:var(--down)}
+#fotoRes dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13.5px}
+#fotoRes dt{color:var(--muted)}
+#fotoRes dd{margin:0;font-family:var(--mono);font-size:13px}
+.acts{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;margin-top:16px}
+#schedaFrame{width:100%;height:62vh;border:1px solid var(--line);border-radius:10px;background:#fff;margin-top:10px}
+.seg{display:inline-flex;border-radius:999px;box-shadow:var(--down);padding:3px;gap:2px;background:var(--well)}
+.seg button{box-shadow:none;padding:5px 12px;background:transparent}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);box-shadow:1px 2px 5px var(--lo)}
+@media (max-width:1000px){
+  html,body{height:auto}
+  main{display:flex;flex-direction:column}
+  #stage{order:-1;height:60vh;min-height:340px;position:sticky;top:0;z-index:2;border-bottom:1px solid var(--line)}
+  aside,#secs,#report{overflow:visible}
+  #controls{flex-direction:column;border:0} #report{border:0}
+  #rail{width:auto;flex-direction:row;justify-content:flex-start;align-items:flex-start;gap:4px;padding:12px 8px;border-right:0;border-bottom:1px solid var(--line);overflow-x:auto}
+  .tab{width:66px;flex:none}
+}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+<script type="importmap">
+{"imports":{
+ "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+ "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<header>
+  <h1>Officina <span>Finiture</span> <small id="ver">v1.0.0</small></h1>
+  <div class="bar">
+    <button id="bUndo" title="Annulla l'ultima modifica (Ctrl+Z)" disabled>Annulla</button>
+    <button id="bRedo" title="Ripeti la modifica annullata (Ctrl+Y)" disabled>Ripeti</button>
+    <button id="bGal" title="Scegli un oggetto di partenza dalle anteprime: pedale, synth, diffusore, ampli...">Modelli</button>
+    <button id="bLoad" title="Apri un progetto di Officina Finiture (.json), oppure porta sul banco un pezzo da Manopole o Griglie (.json) o un qualsiasi .stl">Apri</button>
+    <button id="bSave" title="Salva pezzi, finiture, varianti e luce in un file .json">Salva progetto</button>
+    <button id="bPng" title="Salva l'immagine della vista attuale in alta risoluzione (PNG)">Salva immagine</button>
+    <button id="bScheda" class="primary" title="Scheda CMF per il cliente o per il fornitore: immagini, codici colore, brillantezza, rugosità, note di produzione e costi">Scheda CMF</button>
+    <input id="file" type="file" accept=".json,.stl,application/json" multiple hidden>
+  </div>
+</header>
+<main>
+  <aside id="controls" aria-label="Parametri"></aside>
+  <section id="stage" aria-label="Anteprima 3D">
+    <div id="vLab" aria-hidden="true"></div>
+    <div id="hint" hidden></div>
+    <div id="msg"></div>
+    <div id="viewbar">
+      <button id="bSide" aria-pressed="false" title="Mostra le varianti affiancate, con la stessa luce e la stessa inquadratura">Affianca varianti</button>
+      <button id="bSpin" aria-pressed="false" title="Fa girare lentamente l'oggetto su se stesso: i riflessi scorrono sulle superfici come quando lo si gira in mano">Gira</button>
+      <button id="bFront" aria-pressed="false" title="Vista dritta di fronte">Di fronte</button>
+      <button id="bTop" aria-pressed="false" title="Vista dall'alto, come un pedale guardato dalla posizione di chi suona">Dall'alto</button>
+      <button id="bFit" title="Riporta la vista sull'oggetto">Centra</button>
+    </div>
+    <div id="dims"></div>
+  </section>
+  <aside id="report" aria-label="Scheda">
+    <div><h2>Variante attiva</h2><div class="stats" id="sVar"></div></div>
+    <div><h2>Colori e proporzioni</h2><div id="palette"></div><div id="palLeg"></div>
+      <p class="note" style="margin-top:8px">Ogni colore occupa lo spazio della sua superficie sul pezzo. Una regola di partenza: un colore dominante (circa 60 %), uno secondario (30 %), un accento (10 %).</p></div>
+    <div><h2>Come appare questo abbinamento</h2><ul id="tips"></ul></div>
+    <div><h2>Vincoli di produzione</h2><ul id="checks"></ul>
+      <p class="note" style="margin-top:8px">Un clic su un avviso porta al parametro da correggere.</p></div>
+    <div><h2>Costo indicativo delle finiture</h2><table id="costs"></table>
+      <p class="note" style="margin-top:8px">Ordini di grandezza (±50 %) per lavorazioni conto terzi in Italia: fanno fede i preventivi. Il lotto si imposta nella linguetta Produzione.</p></div>
+    <p class="note">I colori sullo schermo sono indicativi: per approvare un colore fa fede il campione fisico (mazzetta RAL, provino di anodizzazione), guardato con luce D65.</p>
+  </aside>
+</main>
+<dialog id="gallery" aria-labelledby="galT">
+  <div class="galHead"><h2 id="galT">Oggetti di partenza</h2><button id="bGalX">Chiudi</button></div>
+  <p class="note">Ogni modello porta pezzi, finiture e due o tre varianti da confrontare. Il lotto e la luce restano i tuoi.</p>
+  <p class="note" style="margin-top:10px"><label for="libName">Salva il progetto attuale nella tua libreria: </label>
+    <input id="libName" type="text" maxlength="40" placeholder="Nome del modello" style="padding:4px 6px">
+    <button id="bLibSave">Salva</button> <span id="libMsg"></span></p>
+  <div class="gal" id="galGrid"></div>
+</dialog>
+<dialog id="fotoDlg" aria-labelledby="fotoT" style="width:min(860px,95vw)">
+  <div class="galHead"><h2 id="fotoT">Campiona un materiale da una foto</h2><button id="bFotoX">Chiudi</button></div>
+  <p class="note">Fotografa il campione reale con luce diffusa (cielo coperto o una finestra a nord), di fronte, senza flash, riempiendo l'inquadratura. Poi trascina sulla foto un riquadro su una zona uniforme: il programma ne ricava il colore medio, quanto varia, se ha una direzione (spazzolato, venatura) e se è lucido.</p>
+  <div class="acts" style="justify-content:flex-start;margin-top:12px"><button id="bFotoPick" class="primary">Scegli la foto</button><span class="note" style="align-self:center">oppure trascinala qui · JPG, PNG</span>
+    <input id="fotoFile" type="file" accept="image/*" hidden></div>
+  <div id="fotoBox"><span class="note">Nessuna foto</span></div>
+  <div id="fotoRes" hidden><canvas id="fotoCrop" width="256" height="256"></canvas><dl id="fotoDl"></dl></div>
+  <div class="acts"><button id="bFotoCol" disabled title="Usa solo il colore medio sulla finitura attuale">Usa solo il colore</button><button id="bFotoTex" class="primary" disabled title="Crea una finitura con il colore e il carattere della foto (grana, venatura, direzione)">Usa colore e carattere</button></div>
+</dialog>
+<dialog id="schedaDlg" aria-labelledby="schT" style="width:min(1100px,96vw)">
+  <div class="galHead"><h2 id="schT">Scheda CMF</h2>
+    <span style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <span class="seg" role="group" aria-label="Per chi"><button type="button" id="schCli" aria-pressed="true" title="Immagini grandi, palette, descrizione dei materiali, senza costi">Per il cliente</button><button type="button" id="schFor" aria-pressed="false" title="Codici, brillantezza, rugosità, tolleranze, sequenza di lavorazione, note e costi">Per il fornitore</button></span>
+      <span class="seg" role="group" aria-label="Varianti"><button type="button" id="schOne" aria-pressed="true">Variante attiva</button><button type="button" id="schAll" aria-pressed="false">Tutte le varianti</button></span>
+      <button id="bSchSave" class="primary">Salva la scheda (HTML)</button><button id="bSchPrint" title="Apre la stampa: scegli «Salva come PDF» per averla in PDF">Stampa o PDF</button><button id="bSchX">Chiudi</button></span></div>
+  <p class="note">Una pagina A4 per variante, da aprire in qualsiasi browser e stampare o salvare in PDF. Le immagini sono quelle della luce scelta.</p>
+  <iframe id="schedaFrame" title="Anteprima della scheda"></iframe>
+</dialog>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const VER='1.0.0';
+const TAU=Math.PI*2, clamp=(v,a,b)=>Math.min(b,Math.max(a,v)), lerp=(a,b,t)=>a+(b-a)*t;
+const $=id=>document.getElementById(id);
+const nf=(v,d=1)=>(+v).toLocaleString('it-IT',{minimumFractionDigits:d,maximumFractionDigits:d});
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,8);
+const clone=o=>JSON.parse(JSON.stringify(o));
+
+/* ---------- colore: sRGB, Lab, distanza percepita ---------- */
+const hex2rgb=h=>{ h=(h||'#000').replace('#',''); if(h.length===3) h=h.replace(/./g,'$&$&'); const n=parseInt(h,16)||0; return [(n>>16&255)/255,(n>>8&255)/255,(n&255)/255]; };
+const rgb2hex=c=>'#'+c.map(v=>Math.round(clamp(v,0,1)*255).toString(16).padStart(2,'0')).join('');
+const lin=v=>v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4);
+const relLum=h=>{ const [r,g,b]=hex2rgb(h).map(lin); return 0.2126*r+0.7152*g+0.0722*b; };
+const contrast=(a,b)=>{ const A=relLum(a), B=relLum(b); return (Math.max(A,B)+0.05)/(Math.min(A,B)+0.05); };
+function lab(h){ const [r,g,b]=hex2rgb(h).map(lin); let x=(0.4124*r+0.3576*g+0.1805*b)/0.95047, y=0.2126*r+0.7152*g+0.0722*b, z=(0.0193*r+0.1192*g+0.9505*b)/1.08883;
+  const f=t=>t>0.008856?Math.cbrt(t):7.787*t+16/116; x=f(x); y=f(y); z=f(z); return [116*y-16,500*(x-y),200*(y-z)]; }
+function dE00(h1,h2){ const [L1,a1,b1]=lab(h1), [L2,a2,b2]=lab(h2), rad=Math.PI/180;
+  const C1=Math.hypot(a1,b1), C2=Math.hypot(a2,b2), Cm=(C1+C2)/2, G=0.5*(1-Math.sqrt(Math.pow(Cm,7)/(Math.pow(Cm,7)+Math.pow(25,7))));
+  const a1p=a1*(1+G), a2p=a2*(1+G), C1p=Math.hypot(a1p,b1), C2p=Math.hypot(a2p,b2);
+  const h1p=(Math.atan2(b1,a1p)/rad+360)%360, h2p=(Math.atan2(b2,a2p)/rad+360)%360;
+  const dL=L2-L1, dC=C2p-C1p; let dh=h2p-h1p; if(C1p*C2p===0) dh=0; else if(dh>180) dh-=360; else if(dh<-180) dh+=360;
+  const dH=2*Math.sqrt(C1p*C2p)*Math.sin(dh*rad/2), Lm=(L1+L2)/2, Cmp=(C1p+C2p)/2;
+  let hm=h1p+h2p; if(C1p*C2p!==0){ if(Math.abs(h1p-h2p)>180) hm+=hm<360?360:-360; hm/=2; }
+  const T=1-0.17*Math.cos((hm-30)*rad)+0.24*Math.cos(2*hm*rad)+0.32*Math.cos((3*hm+6)*rad)-0.2*Math.cos((4*hm-63)*rad);
+  const dTh=30*Math.exp(-Math.pow((hm-275)/25,2)), Rc=2*Math.sqrt(Math.pow(Cmp,7)/(Math.pow(Cmp,7)+Math.pow(25,7)));
+  const SL=1+0.015*Math.pow(Lm-50,2)/Math.sqrt(20+Math.pow(Lm-50,2)), SC=1+0.045*Cmp, SH=1+0.015*Cmp*T, RT=-Math.sin(2*dTh*rad)*Rc;
+  return Math.sqrt(Math.pow(dL/SL,2)+Math.pow(dC/SC,2)+Math.pow(dH/SH,2)+RT*(dC/SC)*(dH/SH)); }
+const chroma=h=>{ const [,a,b]=lab(h); return Math.hypot(a,b); };
+
+/* ---------- RAL Classic: valori sRGB indicativi (fa fede la mazzetta) ---------- */
+const RAL={
+ '1000':['Beige verdastro','#cdba88'],'1001':['Beige','#d0b084'],'1002':['Giallo sabbia','#d2aa6d'],'1011':['Beige marrone','#8a6642'],'1013':['Bianco perla','#e3d9c6'],
+ '1015':['Avorio chiaro','#e6d2b5'],'1019':['Beige grigiastro','#a08f7d'],'1021':['Giallo navone','#eec900'],'1023':['Giallo traffico','#f0ca00'],'1028':['Giallo melone','#f39f18'],
+ '1032':['Giallo ginestra','#d6a51e'],'2000':['Arancio giallastro','#da6e00'],'2004':['Arancio puro','#e75b12'],'2008':['Rosso arancio chiaro','#ed6b21'],'2011':['Arancio profondo','#ec7c25'],
+ '3000':['Rosso fuoco','#ab2524'],'3003':['Rosso rubino','#8d1d2c'],'3005':['Rosso vino','#5e2028'],'3007':['Rosso nerastro','#402225'],'3009':['Rosso ossido','#6d342d'],
+ '3012':['Rosso beige','#c6846d'],'3014':['Rosa antico','#d36e70'],'3015':['Rosa chiaro','#e2a6b4'],'3020':['Rosso traffico','#c1121c'],'3031':['Rosso oriente','#ac323b'],
+ '4004':['Viola bordeaux','#6b1c48'],'4005':['Lilla bluastro','#76689a'],'4010':['Telemagenta','#bc4077'],
+ '5002':['Blu oltremare','#00387b'],'5003':['Blu zaffiro','#1f3855'],'5010':['Blu genziana','#0e4c7a'],'5011':['Blu acciaio','#1a2b3c'],'5012':['Blu luce','#3b83bd'],
+ '5013':['Blu cobalto','#232c3f'],'5014':['Blu colomba','#637d96'],'5015':['Blu cielo','#2874b2'],'5017':['Blu traffico','#0e518d'],'5018':['Blu turchese','#21888f'],'5021':['Blu acqua','#1a7378'],'5024':['Blu pastello','#6093ac'],
+ '6002':['Verde foglia','#2d572c'],'6003':['Verde oliva','#50533c'],'6005':['Verde muschio','#0f4336'],'6009':['Verde abete','#27352a'],'6011':['Verde reseda','#587f40'],
+ '6015':['Oliva nerastro','#3b3c36'],'6018':['Verde giallastro','#57a639'],'6019':['Verde biancastro','#bdecb6'],'6021':['Verde pallido','#89ac76'],'6027':['Verde chiaro','#7ebab5'],
+ '6029':['Verde menta','#20603d'],'6033':['Turchese menta','#498e85'],'6034':['Turchese pastello','#7aacac'],
+ '7001':['Grigio argento','#8c969d'],'7004':['Grigio segnale','#9b9b9b'],'7006':['Grigio beige','#706651'],'7012':['Grigio basalto','#575d5e'],'7015':['Grigio ardesia','#4f5358'],
+ '7016':['Grigio antracite','#383e42'],'7021':['Grigio nerastro','#2f3234'],'7022':['Grigio ombra','#4b4d46'],'7024':['Grigio grafite','#474a50'],'7030':['Grigio pietra','#939388'],
+ '7031':['Grigio bluastro','#5b686d'],'7032':['Grigio ghiaia','#b9b9a8'],'7035':['Grigio luce','#cbd0cc'],'7036':['Grigio platino','#9a9697'],'7037':['Grigio polvere','#7a7b7a'],
+ '7038':['Grigio agata','#b4b8b0'],'7039':['Grigio quarzo','#6b695f'],'7040':['Grigio finestra','#9da3a6'],'7042':['Grigio traffico A','#8f9695'],'7043':['Grigio traffico B','#4e5452'],
+ '7044':['Grigio seta','#cac4b0'],'7045':['Telegrigio 1','#909090'],'7046':['Telegrigio 2','#82898e'],'7047':['Telegrigio 4','#cfd0cf'],
+ '8003':['Marrone argilla','#7e4b26'],'8011':['Marrone noce','#5a3826'],'8014':['Marrone seppia','#49372a'],'8017':['Marrone cioccolato','#44322d'],'8019':['Marrone grigiastro','#3f3a3a'],
+ '8022':['Marrone nerastro','#211f20'],'8025':['Marrone pallido','#755847'],
+ '9001':['Bianco crema','#e9e0d2'],'9002':['Bianco grigiastro','#d7d5cb'],'9003':['Bianco segnale','#ecece7'],'9004':['Nero segnale','#2b2b2c'],'9005':['Nero intenso','#0e0e10'],
+ '9006':['Alluminio brillante','#a1a1a0'],'9007':['Alluminio grigiastro','#878581'],'9010':['Bianco puro','#f1ece1'],'9011':['Nero grafite','#27292b'],'9016':['Bianco traffico','#f1f0ea'],
+ '9017':['Nero traffico','#2a292a'],'9018':['Bianco papiro','#c8cbc4'] };
+const RAL_MET={'9006':1,'9007':1};
+function nearRAL(h){ let best=null, d=1e9; for(const k in RAL){ const e=dE00(h,RAL[k][1]); if(e<d){ d=e; best=k; } } return {code:best,name:RAL[best][0],hex:RAL[best][1],dE:d}; }
+
+/* ---------- anodizzazione: i colori che si ottengono davvero ---------- */
+// uv: tenuta alla luce (2 buona, 1 media, 0 scarsa all'esterno); el: elettrocolore (sali di stagno), più stabile e ripetibile dei coloranti
+const ANOD={
+  naturale:['Naturale (argento)','#c9cdd1',2,1], champagne:['Champagne','#cdb68d',2,1], bronzoC:['Bronzo chiaro','#a08463',2,1], bronzoM:['Bronzo medio','#6e5843',2,1],
+  bronzoS:['Bronzo scuro','#3e342b',2,1], nero:['Nero','#1c1d20',2,0], titanio:['Titanio (grigio)','#77797d',1,0], oro:['Oro','#c8a14b',2,0],
+  rosso:['Rosso','#9b1f26',0,0], blu:['Blu','#21497f',0,0], verde:['Verde','#2f633f',1,0], viola:['Viola','#57336f',0,0], arancio:['Arancio','#bd5a22',0,0], rosa:['Rosa','#b86b84',0,0] };
+
+/* ---------- materiali di base (di cosa è fatto il pezzo) ---------- */
+const SUB={
+  al_estruso:['Alluminio estruso (6060, 6063)','al'], al_lamiera:['Alluminio in lamiera (5005, 5754)','al'], al_tornito:['Alluminio tornito o fresato (6082)','al'],
+  al_pressofuso:['Alluminio pressofuso (EN AC-46000)','al'], zama:['Zama pressofusa (ZP5)','zn'], acciaio:['Acciaio in lamiera (DC01, zincato)','fe'], inox:['Acciaio inox (AISI 304)','inox'],
+  ottone:['Ottone (CuZn39Pb3, CuZn37)','cu'], rame:['Rame (Cu-ETP)','cu'], mdf:['MDF','leg'], multistrato:['Multistrato di betulla','leg'], massello:['Legno massello','leg'],
+  plastica:['Plastica stampata a iniezione (ABS, PC)','pl'], stampa3d:['Stampa 3D (PLA, PETG, PA12)','p3'], vetro:['Vetro','gl'], pmma:['Acrilico (PMMA)','pm'],
+  tessuto:['Tessuto su telaio','tx'], gomma:['Gomma o elastomero','ru'], supporto:['Rivestimento incollato su legno o MDF','cv'], carta:['Carta o fibra (membrane)','pa'] };
+
+/* ---------- libreria delle finiture ----------
+   met: metallo (si regola la rugosità Ra) · gu: [min, max, tipico] brillantezza a 60° in GU · ra: rugosità tipica in µm
+   tex: trama (normal map) · T: lato della trama in mm · ns: forza della trama · an: anisotropia (spazzolato)
+   cols: tavolozza (anod, ral, free, fixed) · c: costo [€/dm², € a pezzo, € di avviamento per lotto]
+   fp/sc/pa/uv: sensibilità a impronte, graffi, patina, luce (0..1) · tmp: temperatura del metallo
+   sub: compatibilità col materiale di base (2 sì, 1 con riserva, 0 no; i non elencati valgono 0) */
+const FAM={
+ anod:{n:'Alluminio anodizzato', met:1, cols:'anod', tmp:'freddo',
+   sub:{al_estruso:2,al_lamiera:2,al_tornito:2,al_pressofuso:1},
+   v:{ opaco:{n:'Opaco (satinato chimico)',ra:0.5,tex:'blast',T:12,ns:0.25,c:[0.30,0.25,120],fp:0.45,sc:0.25},
+       lucido:{n:'Lucido (brillantato)',ra:0.06,c:[0.45,0.30,140],fp:0.7,sc:0.55},
+       sabbiato:{n:'Sabbiato (microsfere)',ra:1.6,tex:'blast',T:10,ns:0.6,c:[0.50,0.30,140],fp:0.35,sc:0.2},
+       spazzolato:{n:'Spazzolato',ra:0.6,tex:'brush',T:30,ns:0.55,an:0.8,c:[0.70,0.35,140],fp:0.25,sc:0.15},
+       tornito:{n:'Spazzolato concentrico (tornito)',ra:0.5,tex:'radial',T:30,ns:0.6,an:0.85,c:[0.80,0.60,140],fp:0.25,sc:0.15} } },
+ polvere:{n:'Verniciatura a polvere', cols:'ral',
+   sub:{al_estruso:2,al_lamiera:2,al_tornito:2,al_pressofuso:1,zama:1,acciaio:2,inox:2,ottone:1,rame:1,mdf:1},
+   v:{ liscia:{n:'Liscia',gu:[5,95,30],c:[0.18,0.15,80],fp:0.4,sc:0.5},
+       goffrata:{n:'Goffrata (struttura fine)',gu:[3,30,10],tex:'grain',T:16,ns:0.9,c:[0.20,0.15,80],fp:0.15,sc:0.15},
+       bucciata:{n:'Bucciata (buccia d\'arancia)',gu:[15,90,60],tex:'orange',T:40,ns:0.55,c:[0.20,0.15,80],fp:0.3,sc:0.35},
+       raggrinzante:{n:'Raggrinzante (wrinkle)',gu:[2,12,5],tex:'wrinkle',T:20,ns:1,c:[0.24,0.15,90],fp:0.1,sc:0.1},
+       metallizzata:{n:'Metallizzata',gu:[20,90,50],tex:'flake',T:6,ns:0.35,mt:0.45,c:[0.26,0.15,110],fp:0.35,sc:0.4} } },
+ lacca:{n:'Laccatura (vernice liquida)', cols:'ral',
+   sub:{al_estruso:2,al_lamiera:2,al_tornito:2,al_pressofuso:2,zama:2,acciaio:2,inox:1,ottone:2,rame:2,mdf:2,multistrato:2,massello:2,plastica:2,stampa3d:1,vetro:1},
+   v:{ opaca:{n:'Opaca',gu:[3,20,8],c:[0.55,0.30,60],fp:0.45,sc:0.4},
+       satinata:{n:'Satinata',gu:[20,50,30],c:[0.55,0.30,60],fp:0.4,sc:0.4},
+       lucida:{n:'Lucida',gu:[70,92,85],c:[0.70,0.30,60],fp:0.6,sc:0.6},
+       pianoforte:{n:'Lucido pianoforte (spazzolata e lucidata)',gu:[92,98,95],cc:1,c:[2.8,1.0,90],fp:0.9,sc:0.85},
+       soft:{n:'Soft-touch (gommosa)',gu:[1,6,3],c:[0.80,0.30,80],fp:0.5,sc:0.3,deg:1},
+       metallizzata:{n:'Metallizzata',gu:[40,90,70],tex:'flake',T:5,ns:0.3,mt:0.5,cc:0.6,c:[0.85,0.30,80],fp:0.4,sc:0.5} } },
+ ottone:{n:'Ottone', met:1, cols:'fixed', tmp:'caldo', sub:{ottone:2},
+   v:{ lucido:{n:'Lucido',ra:0.05,col:'#e2c574',c:[0.90,0.40,60],fp:0.8,sc:0.6,pa:1},
+       satinato:{n:'Satinato',ra:0.5,col:'#d6b96d',tex:'blast',T:10,ns:0.3,c:[0.60,0.30,60],fp:0.5,sc:0.3,pa:1},
+       spazzolato:{n:'Spazzolato',ra:0.6,col:'#d8ba6c',tex:'brush',T:30,ns:0.5,an:0.8,c:[0.65,0.30,60],fp:0.35,sc:0.2,pa:1},
+       brunito:{n:'Brunito (scurito chimicamente)',ra:0.6,col:'#5d4c34',tex:'blast',T:12,ns:0.3,c:[0.80,0.40,90],fp:0.3,sc:0.6,pa:0.4},
+       patinato:{n:'Patinato anticato',ra:0.8,col:'#7a6a45',tex:'patina',T:60,ns:0.25,c:[1.1,0.6,120],fp:0.2,sc:0.3,pa:0.3} } },
+ rame:{n:'Rame', met:1, cols:'fixed', tmp:'caldo', sub:{rame:2},
+   v:{ lucido:{n:'Lucido',ra:0.05,col:'#dc9163',c:[0.95,0.40,60],fp:0.85,sc:0.6,pa:1},
+       satinato:{n:'Satinato',ra:0.5,col:'#cf8a62',tex:'blast',T:10,ns:0.3,c:[0.65,0.30,60],fp:0.5,sc:0.3,pa:1},
+       brunito:{n:'Brunito',ra:0.6,col:'#4d2d22',tex:'blast',T:12,ns:0.3,c:[0.85,0.40,90],fp:0.3,sc:0.6,pa:0.4},
+       verderame:{n:'Patina verde (verderame)',ra:1.5,col:'#5f9a85',tex:'patina',T:60,ns:0.35,mt:0.15,c:[1.3,0.6,140],fp:0.1,sc:0.4,pa:0.2} } },
+ inox:{n:'Acciaio inox', met:1, cols:'fixed', tmp:'freddo', sub:{inox:2},
+   v:{ spazzolato:{n:'Spazzolato (Scotch-Brite)',ra:0.5,col:'#bfc3c6',tex:'brush',T:30,ns:0.5,an:0.8,c:[0.30,0.20,40],fp:0.45,sc:0.25},
+       lucido:{n:'Lucido a specchio',ra:0.03,col:'#cdd1d4',c:[1.2,0.40,60],fp:0.85,sc:0.7},
+       sabbiato:{n:'Sabbiato',ra:1.4,col:'#b4b8bb',tex:'blast',T:10,ns:0.6,c:[0.45,0.25,60],fp:0.3,sc:0.2},
+       pvdnero:{n:'PVD nero (canna di fucile)',ra:0.3,col:'#2c2d31',c:[1.6,0.8,200],fp:0.5,sc:0.25,tmp:'freddo'},
+       pvdoro:{n:'PVD oro',ra:0.3,col:'#d1ad5a',c:[1.6,0.8,200],fp:0.5,sc:0.25,tmp:'caldo'} } },
+ galv:{n:'Galvanica (cromo, nichel)', met:1, cols:'fixed', tmp:'freddo',
+   sub:{zama:2,ottone:2,acciaio:2,rame:2,al_tornito:1,al_estruso:1,al_pressofuso:1,plastica:1},
+   v:{ cromo:{n:'Cromo lucido',ra:0.03,col:'#d3d7db',c:[0.75,0.40,120],fp:0.85,sc:0.5},
+       nichelsat:{n:'Nichel satinato',ra:0.4,col:'#bdb6aa',tex:'blast',T:10,ns:0.25,c:[0.65,0.40,120],fp:0.4,sc:0.3,tmp:'neutro'},
+       cromonero:{n:'Cromo nero',ra:0.1,col:'#2e3034',c:[0.95,0.45,150],fp:0.7,sc:0.5},
+       ottonatura:{n:'Ottonatura (bagno di ottone)',ra:0.1,col:'#d7bb72',c:[0.80,0.40,120],fp:0.7,sc:0.5,tmp:'caldo',pa:0.6} } },
+ legno:{n:'Legno', cols:'tint', sub:{massello:2,multistrato:2,mdf:2,supporto:1},
+   v:{ olio:{n:'Olio (a poro aperto)',gu:[3,15,7],c:[0.35,0.30,40],fp:0.3,sc:0.35,uv:0.6},
+       cera:{n:'Cera',gu:[8,20,12],c:[0.40,0.30,40],fp:0.35,sc:0.4,uv:0.6},
+       opaca:{n:'Vernice opaca',gu:[10,30,18],c:[0.45,0.30,50],fp:0.25,sc:0.35,uv:0.5},
+       lucida:{n:'Vernice lucida (a poro chiuso)',gu:[70,95,85],cc:0.8,c:[1.2,0.50,70],fp:0.6,sc:0.6,uv:0.5} } },
+ tessuto:{n:'Tessuto', cols:'free', sub:{tessuto:2,supporto:1},
+   v:{ maglia:{n:'Maglia acustica (fine)',gu:[1,4,2],tex:'knit',T:6,ns:0.6,sh:0.7,c:[0.25,1.2,30],fp:0.05,sc:0.05,uv:0.4},
+       trama:{n:'Trama larga (sale e pepe)',gu:[1,4,2],tex:'weave',T:14,ns:1,sh:0.6,mix:1,c:[0.35,1.5,30],fp:0.05,sc:0.05,uv:0.4},
+       jersey:{n:'Jersey elastico',gu:[2,6,3],tex:'knit',T:4,ns:0.4,sh:0.8,c:[0.22,1.2,30],fp:0.05,sc:0.05,uv:0.4},
+       feltro:{n:'Feltro',gu:[1,3,1],tex:'felt',T:12,ns:0.5,sh:0.9,c:[0.30,1.0,30],fp:0.1,sc:0.05,uv:0.4} } },
+ pelle:{n:'Pelle e rivestimenti', cols:'free', sub:{supporto:2,tessuto:1},
+   v:{ fiore:{n:'Pelle pieno fiore',gu:[5,25,12],tex:'leather',T:30,ns:0.5,c:[1.6,4.0,40],fp:0.3,sc:0.4,uv:0.5,pa:0.3},
+       stampata:{n:'Pelle stampata (grana grossa)',gu:[4,20,8],tex:'leather',T:60,ns:0.9,c:[1.3,4.0,40],fp:0.2,sc:0.3,uv:0.4},
+       alcantara:{n:'Microfibra scamosciata',gu:[1,3,1],tex:'felt',T:6,ns:0.3,sh:1,c:[1.4,4.0,40],fp:0.2,sc:0.05,uv:0.3},
+       tolex:{n:'Vinile goffrato (tipo tolex)',gu:[5,30,15],tex:'tolex',T:25,ns:1,c:[0.45,3.0,30],fp:0.15,sc:0.15} } },
+ gomma:{n:'Gomma e soft-touch', cols:'free', sub:{gomma:2,plastica:1,stampa3d:1},
+   v:{ epdm:{n:'Gomma opaca (EPDM, NBR)',gu:[1,6,3],tex:'blast',T:8,ns:0.35,c:[0.10,0.05,0],fp:0.35,sc:0.1},
+       silicone:{n:'Silicone',gu:[5,30,12],c:[0.15,0.05,0],fp:0.5,sc:0.1},
+       tpe:{n:'TPE sovrastampato',gu:[3,15,6],tex:'vdi',T:10,ns:0.3,c:[0.10,0.05,0],fp:0.3,sc:0.15} } },
+ plastica:{n:'Plastica', cols:'free', sub:{plastica:2,stampa3d:2},
+   v:{ lucida:{n:'Stampo lucido (SPI A2)',gu:[85,95,90],c:[0,0,0],cm:900,fp:0.8,sc:0.8},
+       satinata:{n:'Stampo satinato (SPI B2)',gu:[25,50,35],c:[0,0,0],cm:500,fp:0.45,sc:0.5},
+       vdi:{n:'Goffrata a stampo (VDI 3400, rif. 30)',gu:[2,10,5],tex:'vdi',T:10,ns:0.6,c:[0,0,0],cm:700,fp:0.2,sc:0.25},
+       fdm:{n:'Stampa 3D a filamento, grezza',gu:[8,30,15],tex:'fdm',T:20,ns:0.8,c:[0,0,0],fp:0.3,sc:0.4,p3:1},
+       mjf:{n:'Stampa 3D a polvere (MJF, SLS), grezza',gu:[1,5,2],tex:'blast',T:8,ns:0.7,c:[0,0,0],fp:0.5,sc:0.3,p3:1} } },
+ poliurea:{n:'Poliurea a spruzzo', cols:'ral', sub:{mdf:2,multistrato:2,massello:1,acciaio:2,al_lamiera:1,stampa3d:1},
+   v:{ fine:{n:'Bucciata fine',gu:[3,12,6],tex:'spray',T:30,ns:0.7,c:[0.55,0.40,120],fp:0.1,sc:0.05},
+       grossa:{n:'Bucciata grossa (antiurto)',gu:[2,10,4],tex:'spray',T:60,ns:1,c:[0.65,0.40,120],fp:0.05,sc:0.02} } },
+ vetro:{n:'Vetro', cols:'free', sub:{vetro:2},
+   v:{ trasparente:{n:'Trasparente',gu:[95,99,98],tr:1,c:[0.40,0.50,50],fp:0.9,sc:0.4},
+       satinato:{n:'Satinato (acidato)',gu:[10,30,15],tr:1,c:[0.80,0.50,80],fp:0.5,sc:0.2},
+       fume:{n:'Fumé',gu:[95,99,98],tr:1,fu:1,c:[0.60,0.50,60],fp:0.9,sc:0.4},
+       retro:{n:'Retroverniciato (colore dietro)',gu:[95,99,98],cc:1,c:[0.90,0.50,90],fp:0.9,sc:0.3} } },
+ acrilico:{n:'Acrilico (PMMA)', cols:'free', sub:{pmma:2},
+   v:{ trasparente:{n:'Trasparente',gu:[90,98,95],tr:1,c:[0.20,0.30,40],fp:0.9,sc:0.9},
+       opale:{n:'Opale (bianco diffusore)',gu:[60,90,80],op:1,c:[0.20,0.30,40],fp:0.6,sc:0.8},
+       lucido:{n:'Colorato lucido',gu:[85,96,92],c:[0.20,0.30,40],fp:0.9,sc:0.9},
+       satinato:{n:'Satinato',gu:[10,30,15],tr:0.6,c:[0.30,0.30,40],fp:0.4,sc:0.5} } },
+ membrana:{n:'Membrana e sospensione', cols:'free', sub:{carta:2,plastica:2,gomma:2,al_lamiera:1,tessuto:1},
+   v:{ carta:{n:'Carta (cono)',gu:[2,8,4],tex:'felt',T:15,ns:0.4,c:[0,0,0],fp:0.2,sc:0.2},
+       pp:{n:'Polipropilene',gu:[10,40,20],c:[0,0,0],fp:0.3,sc:0.3},
+       gomma:{n:'Gomma (sospensione)',gu:[2,10,4],c:[0,0,0],fp:0.2,sc:0.1},
+       seta:{n:'Seta trattata (cupola)',gu:[5,20,10],tex:'weave',T:3,ns:0.3,sh:0.4,c:[0,0,0],fp:0.1,sc:0.1},
+       metallo:{n:'Metallo (alluminio, berillio)',ra:0.3,met:1,col:'#c7cbce',c:[0,0,0],fp:0.6,sc:0.5} } },
+ segno:{n:'Marcatura', cols:'ral', segno:1, sub:{},
+   v:{ laser:{n:'Incisione laser',c:[0,0.45,30]}, serigrafia:{n:'Serigrafia',c:[0,0.30,60]}, tampo:{n:'Tampografia',c:[0,0.28,120]},
+       uv:{n:'Stampa UV digitale',c:[0,0.60,20]}, riempita:{n:'Incisione meccanica e riempimento',c:[0,1.20,40]} } },
+ foto:{n:'Campione da foto', cols:'photo', sub:{}, v:{ foto:{n:'Dalla foto',gu:[1,95,20],c:[0.5,0.3,60],fp:0.3,sc:0.3} } } };
+for(const f in FAM){ const F=FAM[f]; for(const k in F.sub) if(!SUB[k]) console.warn('sub?',k); if(f==='foto'||f==='segno') for(const s in SUB) F.sub[s]=2; }
+const famOf=s=>FAM[s.fam]||FAM.polvere, varOf=s=>{ const F=famOf(s); return F.v[s.var]||Object.values(F.v)[0]; };
+const isMetal=s=>!!(famOf(s).met||varOf(s).met);
+
+// legni: colore di fondo, colore delle venature, poro aperto, tono caldo
+const ESS={ noce:['Noce canaletto','#6b4a33','#3d2a1d',0.5], rovere:['Rovere','#b89268','#8a6a48',0.8], frassino:['Frassino','#cfb48e','#a38866',0.8],
+  teak:['Teak','#9c6b3e','#6e4b2b',0.4], ciliegio:['Ciliegio','#a5603a','#7c4428',0.25], acero:['Acero','#e2cfad','#cbb48e',0.1], wenge:['Wengé','#3f3027','#1d1612',0.7],
+  betulla:['Betulla (multistrato)','#e0c9a0','#c7ab80',0.15], rovereF:['Rovere fumé','#6e5640','#4a3828',0.8] };
+
+/* ---------- luce: gli ambienti ---------- */
+const ENV={ studio:['Studio fotografico','Grande bank di luce dall\'alto, due strisce ai lati: luce neutra e morbida, i riflessi disegnano i bordi.'],
+  finestra:['Luce da finestra','Una finestra a sinistra, cielo coperto, pareti chiare: la luce del giorno, fredda, con ombre morbide.'],
+  salotto:['Salotto caldo, di sera','Lampade da 2700 K, pareti scure in legno: come appare l\'oggetto in casa, la sera.'],
+  nero:['Fondo nero','Due strisce di luce dietro e una sopra: il fondo sparisce, restano i contorni e i riflessi. È la luce dei cataloghi.'] };
+
+/* ---------- i pezzi che si mettono sul banco ---------- */
+const KIND={
+  pannello:{n:'Frontale o pannello', zones:{piano:'Piano',scritte:'Scritte e scale'}, g:{W:200,H:100,t:3,r:3,b:0.6,leg:true}},
+  scatola:{n:'Scatola, chassis o mobile', zones:{corpo:'Corpo',fronte:'Faccia frontale',scritte:'Scritte e scale'}, g:{W:120,H:80,D:40,r:4,b:1.5,front:false,leg:false}},
+  manopola:{n:'Manopola', zones:{corpo:'Corpo',faccia:'Calotta (faccia)',indice:'Indice'}, g:{D:24,Dt:22,H:16,er:1.2,grip:'zigrinata',N:36,gd:0.45,skirt:false,sD:32,sH:2,top:'piatto',conc:0.6,ptr:'linea',cap:false,lab:''}},
+  griglia:{n:'Griglia in lamiera', zones:{lamiera:'Lamiera'}, g:{shape:'rett',W:200,H:300,Dg:200,r:6,t:1,pat:'tondi60',hd:3,pitch:5,slotL:15,margin:10,dome:0}},
+  telaio:{n:'Griglia in tessuto su telaio', zones:{tessuto:'Tessuto'}, g:{W:200,H:300,r:4,t:12}},
+  altoparlante:{n:'Altoparlante', zones:{telaio:'Flangia',sospensione:'Sospensione',cono:'Cono o membrana',cupola:'Cupola'}, g:{D:165}},
+  componente:{n:'Componente', zones:{metallo:'Finitura',lente:'Lente'}, g:{tipo:'footswitch',on:true,lc:'#ff3b2f'}},
+  stl:{n:'Pezzo da STL', zones:{superficie:'Superficie'}, g:{sc:1,mesh:'',file:''}} };
+const COMP={footswitch:'Interruttore a pedale (footswitch)',levetta:'Interruttore a levetta',led:'LED con ghiera',jack:'Presa jack con dado',piedino:'Piedino in gomma'};
+const PAT={tondi60:'Fori tondi sfalsati a 60° (Rv)',tondi90:'Fori tondi in linea (Rg)',quadri:'Fori quadri (Qg)',esagoni:'Esagoni a nido d\'ape',asole:'Asole sfalsate'};
+// zone che si vedono davvero su questo pezzo, e zone che prendono la finitura di un'altra
+function zonesOf(pt){ const z=Object.keys(KIND[pt.kind].zones), g=pt.g;
+  return z.filter(k=>!(k==='scritte'&&!g.leg)&&!(k==='faccia'&&!g.cap)&&!(k==='fronte'&&!g.front)&&!(k==='lente'&&g.tipo!=='led')&&!(k==='cupola'&&false)); }
+function aliasZone(pt,z){ const g=pt.g; if(z==='faccia'&&!g.cap) return 'corpo'; if(z==='fronte'&&!g.front) return 'corpo'; return z; }
+const zoneName=(pt,z)=>KIND[pt.kind].zones[z]||z;
+
+/* ---------- geometria ---------- */
+function rrShape(w,h,r){ r=Math.max(0,Math.min(r,w/2-0.01,h/2-0.01)); const s=new THREE.Shape(), x=-w/2, y=-h/2;
+  if(r<0.05){ s.moveTo(x,y); s.lineTo(x+w,y); s.lineTo(x+w,y+h); s.lineTo(x,y+h); s.closePath(); return s; }
+  s.moveTo(x+r,y); s.lineTo(x+w-r,y); s.absarc(x+w-r,y+r,r,-Math.PI/2,0); s.lineTo(x+w,y+h-r); s.absarc(x+w-r,y+h-r,r,0,Math.PI/2);
+  s.lineTo(x+r,y+h); s.absarc(x+r,y+h-r,r,Math.PI/2,Math.PI); s.lineTo(x,y+r); s.absarc(x+r,y+r,r,Math.PI,Math.PI*1.5); return s; }
+// proiezione a cubo: le coordinate di trama sono millimetri, così ogni trama ha la sua misura vera su qualunque pezzo
+function boxUV(g){ const P=g.attributes.position.array, n=P.length/3, uv=new Float32Array(n*2), a=new THREE.Vector3(), b=new THREE.Vector3(), c=new THREE.Vector3();
+  for(let t=0;t<n;t+=3){ a.fromArray(P,t*3); b.fromArray(P,t*3+3); c.fromArray(P,t*3+6); const N=b.clone().sub(a).cross(c.clone().sub(a)), ax=Math.abs(N.x), ay=Math.abs(N.y), az=Math.abs(N.z);
+    for(let k=0;k<3;k++){ const i=t+k, x=P[i*3], y=P[i*3+1], z=P[i*3+2]; if(az>=ax&&az>=ay){ uv[i*2]=x; uv[i*2+1]=y; } else if(ax>=ay){ uv[i*2]=z*Math.sign(N.x); uv[i*2+1]=y; } else { uv[i*2]=x; uv[i*2+1]=z*Math.sign(N.y); } } }
+  g.setAttribute('uv',new THREE.BufferAttribute(uv,2)); return g; }
+function fromTris(T){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(T,3)); g.computeVertexNormals(); return g; }
+// blocco con spigoli arrotondati, diviso tra faccia frontale (z massima) e resto
+function blockGeo(W,H,D,r,b){ b=clamp(b,0,Math.min(W,H,D)/2-0.05); const ex=new THREE.ExtrudeGeometry(rrShape(W-2*b,H-2*b,Math.max(0,r-b)),{depth:Math.max(0.02,D-2*b),bevelEnabled:b>0.01,bevelThickness:b,bevelSize:b,bevelSegments:b>0.01?4:1,curveSegments:14});
+  ex.translate(0,0,-(D-2*b)/2); const g=ex.index?ex.toNonIndexed():ex; if(g!==ex) ex.dispose(); g.computeVertexNormals(); const P=g.attributes.position.array, Nn=g.attributes.normal.array, F=[], O=[], FN=[], ON=[], zf=D/2-1e-3;
+  for(let t=0;t<P.length;t+=9){ const front=P[t+2]>zf&&P[t+5]>zf&&P[t+8]>zf, A=front?F:O, AN=front?FN:ON; for(let q=0;q<9;q++){ A.push(P[t+q]); AN.push(Nn[t+q]); } }
+  g.dispose(); const mk=(A,N)=>{ const q=new THREE.BufferGeometry(); q.setAttribute('position',new THREE.Float32BufferAttribute(A,3)); q.setAttribute('normal',new THREE.Float32BufferAttribute(N,3)); return boxUV(q); };
+  return {front:mk(F,FN), rest:mk(O,ON)}; }
+// tornio: profilo [r,z,presa] fatto girare attorno all'asse z; u = arco in mm, v = altezza
+function lathe(prof,S,mod,uR){ const pos=[], uv=[], idx=[], m=prof.length;
+  for(let j=0;j<=S;j++){ const th=j/S*TAU, c=Math.cos(th), s=Math.sin(th);
+    for(const [r0,z,w] of prof){ const r=Math.max(0.01,r0-(w&&mod?w*mod(th):0)); pos.push(r*c,r*s,z); uv.push(th*uR,z); } }
+  for(let j=0;j<S;j++) for(let i=0;i<m-1;i++){ const a=j*m+i, b=a+m; idx.push(a,b,a+1,a+1,b,b+1); }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.setIndex(idx); g.computeVertexNormals();
+  const N=g.attributes.normal.array; for(let i=0;i<m;i++){ const a=i*3, b=(S*m+i)*3; for(let k=0;k<3;k++){ const v=(N[a+k]+N[b+k])/2; N[a+k]=N[b+k]=v; } } return g; }
+function disc(R,zf,seg=64,rings=10,uvNorm=true){ const pos=[], uv=[], idx=[];
+  pos.push(0,0,zf(0)); uv.push(0.5,0.5);
+  for(let k=1;k<=rings;k++){ const r=R*k/rings; for(let j=0;j<seg;j++){ const t=j/seg*TAU, x=r*Math.cos(t), y=r*Math.sin(t); pos.push(x,y,zf(r)); uv.push(uvNorm?x/(2*R)+0.5:x,uvNorm?y/(2*R)+0.5:y); } }
+  for(let j=0;j<seg;j++) idx.push(0,1+j,1+(j+1)%seg);
+  for(let k=1;k<rings;k++){ const o=1+(k-1)*seg, o2=o+seg; for(let j=0;j<seg;j++){ const a=o+j, b=o+(j+1)%seg, c=o2+j, d=o2+(j+1)%seg; idx.push(a,c,b,b,c,d); } }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.setIndex(idx); g.computeVertexNormals(); return g; }
+function stripGeo(pts,w,off){ // nastro largo w lungo una polilinea 3D, spostato di off lungo la normale data per punto
+  const pos=[], idx=[]; pts.forEach(([p,t,n],i)=>{ const s=new THREE.Vector3().crossVectors(n,t).normalize().multiplyScalar(w/2), q=p.clone().addScaledVector(n,off);
+    pos.push(...q.clone().add(s).toArray(),...q.clone().sub(s).toArray()); if(i) idx.push(2*i-2,2*i-1,2*i,2*i,2*i-1,2*i+1); });
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
+  const uv=[]; for(let i=0;i<pos.length/3;i++) uv.push(pos[i*3],pos[i*3+1]); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); return g; }
+
+function knobGeo(g){ const R=g.D/2, Rt=Math.min(g.Dt,g.D)/2, er=clamp(g.er,0,Math.min(Rt*0.5,g.H*0.4)), H=g.H, out={};
+  const zb=g.skirt?g.sH:0, zt=H-er, prof=[];
+  if(g.skirt){ const sR=Math.max(g.sD/2,R+0.5); prof.push([sR,0,0],[sR,Math.max(0.2,g.sH-0.4),0],[sR-0.4,g.sH,0],[R,g.sH,0]); } else prof.push([R,0,0],[R,0.3,0]);
+  const nb=14, gr=g.grip!=='liscia'; for(let i=0;i<=nb;i++){ const t=i/nb, z=lerp(zb+(g.skirt?0:0.3),zt,t), r=lerp(R,Rt,t), inG=gr&&i>0&&i<nb; prof.push([r,z,inG?1:0]); }
+  for(let i=1;i<=6;i++){ const a=i/6*Math.PI/2; prof.push([Rt-er+er*Math.cos(a),zt+er*Math.sin(a),0]); }
+  const N=Math.max(3,Math.round(g.N)), gd=Math.min(g.gd,R*0.3), tri=x=>{ const f=x-Math.floor(x); return 1-Math.abs(f*2-1); };
+  const mod={zigrinata:th=>gd*tri(N*th/TAU),scanalata:th=>gd*Math.pow(Math.max(0,Math.cos(N*th)),6),lobi:th=>gd*(0.5-0.5*Math.cos(N*th))}[g.grip]||null;
+  const S=clamp(mod?N*(g.grip==='zigrinata'?4:10):96,96,560);
+  out.corpo=lathe(prof,S,mod,R);
+  // faccia: bordo a quota H, centro a H+cz (concava sotto, bombata sopra)
+  const Rf=Math.max(0.5,Rt-er), cz=g.top==='concavo'?-g.conc:g.top==='bombato'?g.conc:0, fzf=r=>H+cz*(1-(r/Rf)**2);
+  out.faccia=disc(Rf,fzf,96,12,true); out.faccia.userData={uvmm:2*Rf};
+  const w=Math.max(0.7,g.D*0.045), P=[];
+  if(g.ptr==='linea'){ for(let i=0;i<=10;i++){ const r=lerp(Rf*0.3,Rf*0.93,i/10); P.push([new THREE.Vector3(0,r,fzf(r)),new THREE.Vector3(0,1,-2*cz*r/Rf**2).normalize(),new THREE.Vector3(0,2*cz*r/Rf**2,1).normalize()]); }
+    const top=stripGeo(P,w,0.04), side=[]; for(let i=0;i<=8;i++){ const z=lerp(zb+0.6,zt,i/8), r=lerp(R,Rt,(z-zb)/(zt-zb||1)); side.push([new THREE.Vector3(0,r,z),new THREE.Vector3(0,0,1),new THREE.Vector3(0,1,(R-Rt)/(zt-zb||1)).normalize()]); }
+    out.indice=mergeG([top,stripGeo(side,w,0.05)]); }
+  else if(g.ptr==='punto'){ const r0=Rf*0.72, d=disc(w*0.9,()=>0,24,2,false); d.translate(0,r0,fzf(r0)+0.05); out.indice=d; }
+  else if(g.ptr==='lato'){ const side=[]; for(let i=0;i<=8;i++){ const z=lerp(zb+0.6,zt,i/8), r=lerp(R,Rt,(z-zb)/(zt-zb||1)); side.push([new THREE.Vector3(0,r,z),new THREE.Vector3(0,0,1),new THREE.Vector3(0,1,(R-Rt)/(zt-zb||1)).normalize()]); } out.indice=stripGeo(side,w,0.05); }
+  return out; }
+function mergeG(gs){ const pos=[], uv=[]; for(const g0 of gs){ const g=g0.index?g0.toNonIndexed():g0; pos.push(...g.attributes.position.array); uv.push(...(g.attributes.uv?g.attributes.uv.array:new Float32Array(g.attributes.position.count*2))); }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.computeVertexNormals(); return g; }
+
+function speakerGeo(g){ const R=g.D/2, tw=g.D<=70, out={};
+  if(tw){ out.telaio=lathe([[R,0,0],[R,1.5,0],[R-1,2.5,0],[R*0.55,2.5,0],[R*0.42,0.8,0]],96,null,R);
+    out.sospensione=lathe([[R*0.42,0.8,0],[R*0.39,1.6,0],[R*0.36,0.8,0]],96,null,R);
+    out.cupola=disc(R*0.36,r=>0.8+R*0.22*Math.sqrt(Math.max(0,1-(r/(R*0.36))**2)),64,10,false); out.cono=null; return out; }
+  const fl=Math.max(2,R*0.03), rs=R*0.86, ri=R*0.74, w=(rs-ri)/2;
+  out.telaio=lathe([[R,0,0],[R,fl,0],[R-1,fl+0.6,0],[rs+0.5,fl+0.6,0],[rs,fl,0]],128,null,R);
+  const sp=[]; for(let i=0;i<=10;i++){ const a=i/10*Math.PI; sp.push([ri+w-w*Math.cos(a),fl+w*0.9*Math.sin(a),0]); } sp.reverse(); out.sospensione=lathe(sp,128,null,R);
+  const depth=R*0.3, rc=R*0.3, cone=[]; for(let i=0;i<=10;i++){ const t=i/10; cone.push([lerp(ri,rc,t),fl-depth*Math.pow(t,0.8),0]); } out.cono=lathe(cone,128,null,R);
+  out.cupola=disc(rc+0.5,r=>fl-depth+R*0.1*Math.sqrt(Math.max(0,1-(r/(rc+0.5))**2)),64,10,false);
+  return out; }
+function compGeo(g){ const L=(prof,S=48)=>lathe(prof,S,null,8), out={};
+  if(g.tipo==='footswitch') out.metallo=mergeG([L([[7.8,0,0],[7.8,2.6,0],[6.2,2.6,0],[6.2,6,0],[5.4,6,0],[5.4,11,0],[4.6,12,0],[0.1,12,0]],6),L([[6.2,2.6,0],[6.2,6,0]],48)]);
+  else if(g.tipo==='levetta'){ const lev=new THREE.CylinderGeometry(1.1,1.4,11,16); lev.rotateX(Math.PI/2); lev.rotateX(-0.35); lev.translate(0,2,9); const tip=new THREE.SphereGeometry(1.6,16,12); tip.translate(0,4,13.8);
+    out.metallo=mergeG([L([[5.6,0,0],[5.6,2,0],[3,2,0],[3,6,0],[0.1,6,0]],6),lev,tip]); }
+  else if(g.tipo==='led'){ out.metallo=L([[4.6,0,0],[4.6,1.2,0],[3.9,2.2,0],[2.6,2.2,0],[2.6,1.4,0]],48); out.lente=disc(2.6,r=>1.4+2.2*Math.sqrt(Math.max(0,1-(r/2.6)**2)),32,8,false); }
+  else if(g.tipo==='jack') out.metallo=mergeG([L([[8,0,0],[8,0.6,0],[6.8,0.6,0]],48),L([[6.8,0.6,0],[6.8,3,0],[4.8,3,0],[4.8,4.2,0],[3.4,4.2,0],[3.4,1,0]],6)]);
+  else out.metallo=L([[10,0,0],[10,4.5,0],[9,6,0],[0.1,6,0]],48);
+  return out; }
+
+// griglia: lamiera vista con la sua trasparenza (i fori sono disegnati su una trama), con lo spessore sul bordo
+function gridOutline(g,n=160){ const P=[]; if(g.shape==='tonda'){ for(let i=0;i<n;i++){ const t=i/n*TAU; P.push([g.Dg/2*Math.cos(t),g.Dg/2*Math.sin(t)]); } return P; }
+  const w=g.W, h=g.H, r=g.shape==='stadio'?Math.min(w,h)/2:Math.min(g.r,w/2,h/2); const s=rrShape(w,h,r); return s.getSpacedPoints(n).slice(0,-1).map(v=>[v.x,v.y]); }
+function gridSD(g,x,y){ if(g.shape==='tonda') return Math.hypot(x,y)-g.Dg/2; const r=g.shape==='stadio'?Math.min(g.W,g.H)/2:Math.min(g.r,g.W/2,g.H/2), qx=Math.abs(x)-g.W/2+r, qy=Math.abs(y)-g.H/2+r;
+  return Math.hypot(Math.max(qx,0),Math.max(qy,0))+Math.min(Math.max(qx,qy),0)-r; }
+const gridBox=g=>g.shape==='tonda'?[g.Dg,g.Dg]:[g.W,g.H];
+// vuoto su pieno della foratura (formule del reticolo, le stesse di Officina Griglie), con il foro ridotto di c per lato
+function openArea(g,c=0){ const d=Math.max(0,g.hd-2*c), q=g.pitch;
+  switch(g.pat){ case 'tondi60': return Math.PI*d*d/(2*Math.sqrt(3)*q*q); case 'tondi90': return Math.PI*d*d/(4*q*q); case 'quadri': return d*d/(q*q); case 'esagoni': return d*d/(q*q);
+    case 'asole':{ const L=Math.max(d,g.slotL-2*c), A=d*(L-d)+Math.PI*d*d/4; return A/(q*(g.slotL+q-g.hd)); } } return 0; }
+function holeCenters(g){ const [bw,bh]=gridBox(g), q=g.pitch, out=[], lim=g.margin+g.hd/2;
+  const add=(x,y)=>{ if(gridSD(g,x,y)<=-lim) out.push([x,y]); };
+  if(g.pat==='asole'){ const sy=g.slotL+q-g.hd; for(let j=-Math.ceil(bh/sy);j<=Math.ceil(bh/sy);j++) for(let i=-Math.ceil(bw/q);i<=Math.ceil(bw/q);i++){ const x=i*q+(j&1?q/2:0), y=j*sy; if(gridSD(g,x,y+g.slotL/2-g.hd/2)<=-lim&&gridSD(g,x,y-g.slotL/2+g.hd/2)<=-lim) out.push([x,y]); } return out; }
+  const st=g.pat==='tondi60'||g.pat==='esagoni', dy=st?q*Math.sqrt(3)/2:q;
+  for(let j=-Math.ceil(bh/dy);j<=Math.ceil(bh/dy);j++) for(let i=-Math.ceil(bw/q)-1;i<=Math.ceil(bw/q)+1;i++) add(i*q+(st&&(j&1)?q/2:0),j*dy); return out; }
+function gridAlpha(g){ const [bw,bh]=gridBox(g), ppm=clamp(Math.min(4096/bw,4096/bh),1,24), W=Math.ceil(bw*ppm), H=Math.ceil(bh*ppm), cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  const c=cv.getContext('2d'); c.fillStyle='#000'; c.fillRect(0,0,W,H); c.setTransform(ppm,0,0,-ppm,W/2,H/2); c.fillStyle='#fff'; c.beginPath(); gridOutline(g,240).forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y)); c.closePath(); c.fill();
+  c.fillStyle='#000'; const d=g.hd; c.beginPath();
+  for(const [x,y] of holeCenters(g)){ if(g.pat==='quadri'){ c.rect(x-d/2,y-d/2,d,d); continue; }
+    if(g.pat==='esagoni'){ const R=d/Math.sqrt(3); for(let k=0;k<6;k++){ const a=Math.PI/6+k*Math.PI/3; k?c.lineTo(x+R*Math.cos(a),y+R*Math.sin(a)):c.moveTo(x+R*Math.cos(a),y+R*Math.sin(a)); } c.closePath(); continue; }
+    if(g.pat==='asole'){ const l=(g.slotL-d)/2; c.moveTo(x+d/2,y-l); c.arc(x,y+l,d/2,0,Math.PI); c.arc(x,y-l,d/2,Math.PI,TAU); c.closePath(); continue; }
+    c.moveTo(x+d/2,y); c.arc(x,y,d/2,0,TAU); }
+  c.fill('nonzero'); return cv; }
+function domeAt(g){ const [bw,bh]=gridBox(g); if(!(g.dome>0)) return ()=>0; return (x,y)=>g.shape==='tonda'?g.dome*Math.max(0,1-(x*x+y*y)/(g.Dg*g.Dg/4)):g.dome*Math.cos(Math.PI*x/bw/1.04)*Math.cos(Math.PI*y/bh/1.04); }
+function gridGeo(g){ const [bw,bh]=gridBox(g), n=64, dz=domeAt(g), pos=[], uv=[], uv1=[], idx=[];
+  for(let j=0;j<=n;j++) for(let i=0;i<=n;i++){ const x=(i/n-0.5)*bw, y=(j/n-0.5)*bh; pos.push(x,y,dz(x,y)); uv.push(x,y); uv1.push(i/n,j/n); }
+  for(let j=0;j<n;j++) for(let i=0;i<n;i++){ const a=j*(n+1)+i; idx.push(a,a+1,a+n+1,a+1,a+n+2,a+n+1); }
+  const plate=new THREE.BufferGeometry(); plate.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); plate.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); plate.setAttribute('uv1',new THREE.Float32BufferAttribute(uv1,2)); plate.setIndex(idx); plate.computeVertexNormals();
+  const O=gridOutline(g,200), T=[]; for(let i=0;i<O.length;i++){ const [ax,ay]=O[i], [bx,by]=O[(i+1)%O.length], za=dz(ax,ay)-0.002, zb=dz(bx,by)-0.002; T.push(ax,ay,za,bx,by,zb,ax,ay,za-g.t, bx,by,zb,bx,by,zb-g.t,ax,ay,za-g.t); }
+  const edge=boxUV(fromTris(T)); const e2=new THREE.BufferGeometry(); e2.setAttribute('position',edge.attributes.position); e2.setAttribute('normal',edge.attributes.normal); e2.setAttribute('uv',edge.attributes.uv); e2.setAttribute('uv1',new THREE.Float32BufferAttribute(new Float32Array(edge.attributes.position.count*2).fill(0.5),2));
+  return {plate,edge:e2}; }
+
+/* ---------- STL ---------- */
+const MESHES={};  // id → {pos: Float32Array} (tenuti fuori dalla cronologia: possono essere grandi)
+function parseSTL(buf){ const dv=new DataView(buf); let pos=null;
+  if(buf.byteLength>84){ const n=dv.getUint32(80,true); if(84+n*50===buf.byteLength){ pos=new Float32Array(n*9); for(let t=0;t<n;t++){ const o=84+t*50+12; for(let k=0;k<9;k++) pos[t*9+k]=dv.getFloat32(o+k*4,true); } } }
+  if(!pos){ const txt=new TextDecoder().decode(buf), m=txt.match(/vertex\s+[-+\d.eE]+\s+[-+\d.eE]+\s+[-+\d.eE]+/g); if(!m||m.length<3) throw new Error('STL non riconosciuto');
+    pos=new Float32Array(m.length*3); m.forEach((s,i)=>{ const v=s.trim().split(/\s+/); pos[i*3]=+v[1]; pos[i*3+1]=+v[2]; pos[i*3+2]=+v[3]; }); }
+  let mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9]; for(let i=0;i<pos.length;i+=3) for(let k=0;k<3;k++){ mn[k]=Math.min(mn[k],pos[i+k]); mx[k]=Math.max(mx[k],pos[i+k]); }
+  const cx=(mn[0]+mx[0])/2, cy=(mn[1]+mx[1])/2; for(let i=0;i<pos.length;i+=3){ pos[i]-=cx; pos[i+1]-=cy; pos[i+2]-=mn[2]; } return pos; }
+// normali morbide sotto i 35°, spigoli vivi sopra: le superfici curve non si vedono a faccette
+function creased(pos,deg=35){ const n=pos.length/9, FN=new Float32Array(n*3), key=i=>Math.round(pos[i]*1e3)+','+Math.round(pos[i+1]*1e3)+','+Math.round(pos[i+2]*1e3), M=new Map();
+  for(let t=0;t<n;t++){ const o=t*9, ux=pos[o+3]-pos[o],uy=pos[o+4]-pos[o+1],uz=pos[o+5]-pos[o+2],wx=pos[o+6]-pos[o],wy=pos[o+7]-pos[o+1],wz=pos[o+8]-pos[o+2];
+    let x=uy*wz-uz*wy, y=uz*wx-ux*wz, z=ux*wy-uy*wx; const l=Math.hypot(x,y,z)||1; FN[t*3]=x/l; FN[t*3+1]=y/l; FN[t*3+2]=z/l;
+    for(let k=0;k<3;k++){ const kk=key(o+k*3); let a=M.get(kk); if(!a) M.set(kk,a=[]); a.push(t); } }
+  const N=new Float32Array(pos.length), ct=Math.cos(deg*Math.PI/180);
+  for(let t=0;t<n;t++) for(let k=0;k<3;k++){ const o=t*9+k*3, list=M.get(key(o)); let x=0,y=0,z=0; for(const s of list){ const d=FN[t*3]*FN[s*3]+FN[t*3+1]*FN[s*3+1]+FN[t*3+2]*FN[s*3+2]; if(d>=ct){ x+=FN[s*3]; y+=FN[s*3+1]; z+=FN[s*3+2]; } }
+    const l=Math.hypot(x,y,z)||1; N[o]=x/l; N[o+1]=y/l; N[o+2]=z/l; }
+  return N; }
+const b64e=u8=>{ let s=''; for(let i=0;i<u8.length;i+=32768) s+=String.fromCharCode.apply(null,u8.subarray(i,i+32768)); return btoa(s); };
+const b64d=s=>{ const b=atob(s), u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; };
+
+/* ---------- trame procedurali (tutte ripetibili senza giunte) ---------- */
+function rng(seed){ let s=seed>>>0||1; return ()=>{ s^=s<<13; s>>>=0; s^=s>>17; s^=s<<5; s>>>=0; return s/4294967296; }; }
+function vnoise(N,cx,cy,seed){ const r=rng(seed), L=new Float32Array(cx*cy); for(let i=0;i<L.length;i++) L[i]=r(); const out=new Float32Array(N*N), sm=t=>t*t*(3-2*t);
+  for(let y=0;y<N;y++){ const fy=y/N*cy, y0=Math.floor(fy), ty=sm(fy-y0), y1=(y0+1)%cy; for(let x=0;x<N;x++){ const fx=x/N*cx, x0=Math.floor(fx), tx=sm(fx-x0), x1=(x0+1)%cx;
+    const a=L[y0*cx+x0], b=L[y0*cx+x1], c=L[y1*cx+x0], d=L[y1*cx+x1]; out[y*N+x]=lerp(lerp(a,b,tx),lerp(c,d,tx),ty); } } return out; }
+function fbm(N,c,oct,seed,ax=1){ const o=new Float32Array(N*N); let a=1, s=0; for(let k=0;k<oct;k++){ const n=vnoise(N,Math.max(1,Math.round(c*(1<<k)/ax)),c*(1<<k),seed+k*97); for(let i=0;i<o.length;i++) o[i]+=n[i]*a; s+=a; a*=0.5; } for(let i=0;i<o.length;i++) o[i]/=s; return o; }
+function worley(N,cells,seed){ const r=rng(seed), P=[]; for(let j=0;j<cells;j++) for(let i=0;i<cells;i++) P.push([(i+r())/cells,(j+r())/cells]); const o1=new Float32Array(N*N), o2=new Float32Array(N*N);
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){ const u=x/N, v=y/N, ci=Math.floor(u*cells), cj=Math.floor(v*cells); let d1=9, d2=9;
+    for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){ const ii=(ci+di+cells)%cells, jj=(cj+dj+cells)%cells, p=P[jj*cells+ii]; let dx=p[0]-u, dy=p[1]-v; dx-=Math.round(dx); dy-=Math.round(dy); const d=Math.hypot(dx,dy)*cells; if(d<d1){ d2=d1; d1=d; } else if(d<d2) d2=d; }
+    o1[y*N+x]=d1; o2[y*N+x]=d2; } return [o1,o2]; }
+const TEXN=512;
+function heightOf(key){ const N=TEXN, h=new Float32Array(N*N);
+  switch(key){
+    case 'blast':{ const a=fbm(N,96,2,11), r=rng(5); for(let i=0;i<h.length;i++) h[i]=a[i]*0.6+r()*0.4; break; }
+    case 'brush':{ const a=vnoise(N,3,512,21), b=vnoise(N,8,256,22), c=vnoise(N,1,128,23); for(let i=0;i<h.length;i++) h[i]=a[i]*0.55+b[i]*0.3+c[i]*0.15; break; }
+    case 'grain':{ const a=fbm(N,40,2,31); for(let i=0;i<h.length;i++){ const t=clamp((a[i]-0.42)/0.22,0,1); h[i]=t*t*(3-2*t); } break; }
+    case 'orange':{ const a=fbm(N,8,3,41); for(let i=0;i<h.length;i++) h[i]=a[i]; break; }
+    case 'wrinkle':{ const a=fbm(N,10,3,51); for(let i=0;i<h.length;i++) h[i]=1-Math.abs(a[i]*2-1); break; }
+    case 'flake':{ const r=rng(61); for(let y=0;y<N;y+=2) for(let x=0;x<N;x+=2){ const v=r(); h[y*N+x]=h[y*N+x+1]=h[(y+1)*N+x]=h[(y+1)*N+x+1]=v; } break; }
+    case 'weave': case 'knit':{ const K=key==='weave'?16:28, n=fbm(N,64,2,71); for(let y=0;y<N;y++) for(let x=0;x<N;x++){ const u=x/N*K, v=y/N*K, i=Math.floor(u), j=Math.floor(v), wu=u-i, wv=v-j;
+        let val; if(key==='weave'){ const over=(i+j)&1; val=over?Math.sin(Math.PI*wu)*(0.75+0.25*Math.sin(Math.PI*wv)):Math.sin(Math.PI*wv)*(0.75+0.25*Math.sin(Math.PI*wu)); }
+        else { const s=Math.abs(wv-0.5)*0.9, f=(wu+((j&1)?s:-s)+1)%1; val=Math.sin(Math.PI*f)*Math.sin(Math.PI*wv*1)**0.3; }
+        h[y*N+x]=val*0.85+n[y*N+x]*0.15; } break; }
+    case 'felt':{ const a=fbm(N,128,2,81), b=vnoise(N,256,256,82); for(let i=0;i<h.length;i++) h[i]=a[i]*0.5+b[i]*0.5; break; }
+    case 'leather':{ const [d1,d2]=worley(N,22,91), f=fbm(N,64,2,92); for(let i=0;i<h.length;i++) h[i]=clamp((d2[i]-d1[i])*1.6,0,1)*0.8+f[i]*0.2; break; }
+    case 'tolex':{ const [d1,d2]=worley(N,40,93), f=fbm(N,128,1,94); for(let i=0;i<h.length;i++) h[i]=Math.pow(clamp((d2[i]-d1[i])*2,0,1),0.6)*0.8+f[i]*0.2; break; }
+    case 'vdi':{ const a=fbm(N,128,2,101), r=rng(102); for(let i=0;i<h.length;i++) h[i]=a[i]*0.7+r()*0.3; break; }
+    case 'fdm':{ const n=vnoise(N,4,64,111); for(let y=0;y<N;y++) for(let x=0;x<N;x++) h[y*N+x]=0.5+0.4*Math.sin(y/N*TAU*100)+0.1*n[y*N+x]; break; }
+    case 'spray':{ const a=fbm(N,14,3,121), [d1]=worley(N,30,122); for(let i=0;i<h.length;i++) h[i]=Math.pow(a[i],1.5)*0.7+(1-clamp(d1[i],0,1))*0.3; break; }
+    case 'patina':{ const a=fbm(N,6,4,131); for(let i=0;i<h.length;i++) h[i]=a[i]; break; }
+    default: h.fill(0.5); }
+  return h; }
+function normalFromH(h,N,s=2.5){ const cv=document.createElement('canvas'); cv.width=cv.height=N; const c=cv.getContext('2d'), im=c.createImageData(N,N), d=im.data;
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){ const L=h[y*N+(x+N-1)%N], R=h[y*N+(x+1)%N], U=h[((y+N-1)%N)*N+x], D=h[((y+1)%N)*N+x];
+    let nx=(L-R)*s, ny=(D-U)*s, nz=1; const l=Math.hypot(nx,ny,nz); const o=(y*N+x)*4; d[o]=(nx/l*0.5+0.5)*255; d[o+1]=(ny/l*0.5+0.5)*255; d[o+2]=(nz/l*0.5+0.5)*255; d[o+3]=255; }
+  c.putImageData(im,0,0); return cv; }
+let maxAniso=4;
+function canvasTex(cv,srgb){ const t=new THREE.CanvasTexture(cv); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=maxAniso; t.colorSpace=srgb?THREE.SRGBColorSpace:THREE.NoColorSpace; t.center.set(0.5,0.5); return t; }
+const TEXC=new Map();
+function tex(key){ if(TEXC.has(key)) return TEXC.get(key); let t;
+  if(key==='radial'){ // anelli del tornio, con la direzione tangente per l'anisotropia
+    const N=TEXN, h=new Float32Array(N*N), r1=rng(141), ring=new Float32Array(1024); for(let i=0;i<1024;i++) ring[i]=r1(); const sm=new Float32Array(1024); for(let i=0;i<1024;i++) sm[i]=(ring[i]+ring[(i+1)%1024]+ring[(i+1023)%1024])/3;
+    const A=document.createElement('canvas'); A.width=A.height=N; const ac=A.getContext('2d'), im=ac.createImageData(N,N);
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){ const dx=x/N-0.5, dy=y/N-0.5, r=Math.hypot(dx,dy); h[y*N+x]=sm[Math.floor(r*2*900)%1024]; const l=r||1, tx=-dy/l, ty=dx/l, o=(y*N+x)*4;
+      im.data[o]=(tx*0.5+0.5)*255; im.data[o+1]=(-ty*0.5+0.5)*255; im.data[o+2]=255; im.data[o+3]=255; }
+    ac.putImageData(im,0,0); const nt=canvasTex(normalFromH(h,N,1.6)); nt.wrapS=nt.wrapT=THREE.ClampToEdgeWrapping; const at=canvasTex(A); at.wrapS=at.wrapT=THREE.ClampToEdgeWrapping; t={n:nt,a:at}; }
+  else if(key.startsWith('wood:')){ const e=ESS[key.slice(5)]||ESS.noce, N=TEXN, base=hex2rgb(e[1]), dark=hex2rgb(e[2]), n=fbm(N,2,3,151,0.25), f=vnoise(N,4,384,152), f2=vnoise(N,2,96,155), pr=vnoise(N,48,512,153), rr=rng(154);
+    const cv=document.createElement('canvas'); cv.width=cv.height=N; const c=cv.getContext('2d'), im=c.createImageData(N,N), h=new Float32Array(N*N), R=36;
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){ const i=y*N+x, ph=(y/N*R+n[i]*1.1)%1, band=Math.pow(Math.sin(Math.PI*ph),4)*(0.55+0.45*f2[i]), pore=pr[i]>0.83?(pr[i]-0.83)*6*e[3]:0;
+      const k=clamp(band*0.32+f[i]*0.3+f2[i]*0.12+pore*0.5+(rr()-0.5)*0.03,0,1); for(let q=0;q<3;q++) im.data[i*4+q]=Math.pow(lerp(base[q],dark[q],k),1)*255; im.data[i*4+3]=255; h[i]=1-pore*0.8-band*0.1; }
+    c.putImageData(im,0,0); t={c:canvasTex(cv,true),n:canvasTex(normalFromH(h,N,1.2))}; }
+  else if(key==='mix'){ // tessuto «sale e pepe»: fili di chiarezza diversa
+    const N=TEXN, K=16, r=rng(161), lw=[], cv=document.createElement('canvas'); cv.width=cv.height=N; for(let i=0;i<K*2;i++) lw.push(r()<0.3?1.9:r()<0.5?0.75:1); const c=cv.getContext('2d'), im=c.createImageData(N,N);
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){ const u=x/N*K, v=y/N*K, i=Math.floor(u), j=Math.floor(v), over=(i+j)&1, l=over?lw[i]:lw[K+j], o=(y*N+x)*4; const val=clamp(l*0.5,0,1)*255; im.data[o]=im.data[o+1]=im.data[o+2]=val; im.data[o+3]=255; }
+    c.putImageData(im,0,0); t={c:canvasTex(cv,true)}; }
+  else { const h=heightOf(key); t={n:canvasTex(normalFromH(h,TEXN,{flake:6,brush:3,blast:3,grain:4,orange:2,fdm:2}[key]||2.5))};
+    if(key==='patina'){ const cv=document.createElement('canvas'); cv.width=cv.height=TEXN; const c=cv.getContext('2d'), im=c.createImageData(TEXN,TEXN);
+      for(let i=0;i<h.length;i++){ const k=h[i]; im.data[i*4]=255*lerp(0.75,1.15,k); im.data[i*4+1]=255*lerp(0.72,1.12,k); im.data[i*4+2]=255*lerp(0.62,1.0,k); im.data[i*4+3]=255; } c.putImageData(im,0,0); t.c=canvasTex(cv,true); } }
+  TEXC.set(key,t); return t; }
+
+/* ---------- invecchiamento: impronte, graffi, patina, sbiadimento ---------- */
+const AGE_T=150;
+function ageTex(r0,fp,sc,deg,yrs){ const key=['age',r0.toFixed(2),fp.toFixed(2),sc.toFixed(2),deg,yrs].join('|'); if(TEXC.has(key)) return TEXC.get(key);
+  const N=TEXN, ppm=N/AGE_T, cv=document.createElement('canvas'); cv.width=cv.height=N; const c=cv.getContext('2d'), k=clamp(yrs/10,0,1);
+  let r=r0; if(deg) r=r0*(1-0.55*clamp((yrs-3)/6,0,1));   // il soft-touch dopo qualche anno diventa appiccicoso e lucido
+  const g=v=>{ const q=Math.round(clamp(v,0,1)*255); return `rgb(${q},${q},${q})`; }; c.fillStyle=g(r); c.fillRect(0,0,N,N);
+  const R=rng(171), oil=r>0.3?r*0.5:clamp(r+0.28,0,0.55), nf=Math.round(9*fp*Math.sqrt(k)*2);
+  const wrap=(fn)=>{ for(const ox of [-N,0,N]) for(const oy of [-N,0,N]){ c.save(); c.translate(ox,oy); fn(); c.restore(); } };
+  for(let i=0;i<nf;i++){ const x=R()*N, y=R()*N, a=R()*Math.PI, s=(11+R()*7)*ppm, al=0.35+0.4*R();
+    wrap(()=>{ c.save(); c.translate(x,y); c.rotate(a); c.scale(1,0.72); c.globalAlpha=al*Math.min(1,fp*1.4); for(let q=s/2;q>1;q-=0.85*ppm){ c.strokeStyle=g(lerp(r,oil,0.8)); c.lineWidth=0.35*ppm; c.beginPath(); c.arc(0,0,q,0,TAU); c.stroke(); } c.restore(); }); }
+  const ns=Math.round(70*sc*k), sr=r>0.5?r*0.55:clamp(r+0.4,0,0.7);
+  for(let i=0;i<ns;i++){ const x=R()*N, y=R()*N, a=R()*TAU, L=(6+R()*50)*ppm, cu=(R()-0.5)*0.02; c.globalAlpha=0.5+0.5*R();
+    wrap(()=>{ c.strokeStyle=g(sr); c.lineWidth=Math.max(0.6,0.18*ppm); c.beginPath(); let px=x, py=y, an=a; c.moveTo(px,py); for(let s=0;s<L;s+=3){ an+=cu; px+=Math.cos(an)*3; py+=Math.sin(an)*3; c.lineTo(px,py); } c.stroke(); }); }
+  c.globalAlpha=1; const t=canvasTex(cv,false); TEXC.set(key,t); return t; }
+
+/* ---------- dalla finitura al materiale 3D ---------- */
+// brillantezza a 60° (GU) e rugosità Ra (µm) → roughness del modello fisico: tabelle tarate a occhio su campioni reali
+const GU_R=[[1,0.95],[3,0.85],[6,0.72],[10,0.62],[20,0.5],[35,0.4],[50,0.32],[70,0.22],[85,0.14],[92,0.09],[98,0.04]];
+const RA_R=[[0.02,0.04],[0.05,0.07],[0.1,0.12],[0.2,0.2],[0.4,0.29],[0.8,0.4],[1.6,0.52],[3.2,0.65],[6.3,0.78]];
+const interp=(T,x)=>{ if(x<=T[0][0]) return T[0][1]; for(let i=1;i<T.length;i++) if(x<=T[i][0]){ const [a,b]=T[i-1], [c,d]=T[i]; return lerp(b,d,(x-a)/(c-a)); } return T[T.length-1][1]; };
+const guRough=gu=>interp(GU_R,gu), raRough=ra=>interp(RA_R.map(([a,b])=>[Math.log(a),b]),Math.log(Math.max(0.01,ra)));
+const roughGU=r=>{ for(let i=1;i<GU_R.length;i++){ const [a,b]=GU_R[i-1], [c,d]=GU_R[i]; if(r<=b&&r>=d) return lerp(a,c,(b-r)/(b-d)); } return r>0.95?1:98; };
+function roughOf(s){ const V=varOf(s); return isMetal(s)?raRough(s.ra??V.ra??0.5):guRough(s.gu??(V.gu?V.gu[2]:20)); }
+const glossOf=s=>roughGU(roughOf(s));   // brillantezza equivalente, anche per i metalli
+function colorOf(s){ const F=famOf(s), V=varOf(s);
+  if(F.cols==='anod') return (ANOD[s.anod]||ANOD.naturale)[1];
+  if(F.cols==='fixed'||V.col) return V.col;
+  if(F.cols==='tint') return ESS[s.ess||'noce'][1];
+  if(F.cols==='photo'){ const S=p.samples&&p.samples[s.foto]; return S?S.col:'#888888'; }
+  return s.col||'#808080'; }
+// il segno del laser dipende da cosa c'è sotto: sull'anodizzato toglie il colore e lascia l'alluminio chiaro
+function laserColor(b){ if(!b) return '#d6d9dc'; const f=b.fam, v=b.var, sub=SUB[b.sub]?SUB[b.sub][1]:'';
+  if(f==='anod') return b.anod==='naturale'?'#e3e6e8':'#d5d8db';
+  if(f==='polvere'||f==='lacca'||f==='poliurea') return sub==='leg'?'#4b321f':sub==='pl'||sub==='p3'?'#585858':'#b9bdc1';
+  if(f==='ottone') return '#8b7243'; if(f==='rame') return '#7b4a31'; if(f==='inox') return v.startsWith('pvd')?'#c5c8cb':'#3a3b3e'; if(f==='galv') return '#9da1a5';
+  if(f==='legno') return '#3c2617'; if(f==='plastica'||f==='gomma') return relLum(colorOf(b))<0.2?'#a8a9aa':'#3b3b3b'; if(f==='pelle') return '#3d2a1e';
+  if(f==='vetro'||f==='acrilico') return '#e8eaec'; return '#6b6b6b'; }
+function markColor(s,base){ return s.var==='laser'?laserColor(base):(s.col||'#f1ece1'); }
+function makeMat(s,ctx){ const F=famOf(s), V=varOf(s), uvmm=ctx.uvmm||1, m=new THREE.MeshPhysicalMaterial({side:ctx.double?THREE.DoubleSide:THREE.FrontSide}), age=p.age||0;
+  const col=F.segno?markColor(s,ctx.base):colorOf(s); m.color.set(col);
+  const rough=F.segno?(s.var==='laser'?0.6:0.35):roughOf(s);
+  if(F.segno){ m.metalness=s.var==='laser'&&ctx.base&&isMetal(ctx.base)?0.4:0; m.roughness=rough; return m; }
+  if(isMetal(s)){ m.metalness=V.mt??1; if(F.cols==='anod'){ const L=relLum(col); m.metalness=0.3+0.65*clamp(L*1.6+chroma(col)/110,0,1); } }
+  else m.metalness=V.mt??0;
+  m.roughness=rough;
+  const rep=T=>uvmm/(T*(s.ts||1)), rot=(s.dir||0)*Math.PI/180;
+  const useN=(t,T,ns)=>{ const n=t.clone(); n.needsUpdate=true; n.repeat.set(rep(T),rep(T)); n.rotation=rot; m.normalMap=n; m.normalScale.set(ns*(s.tn??1),ns*(s.tn??1)); return n; };
+  let key=V.tex;
+  if(key==='radial'&&!ctx.face) key='brush';
+  if(key==='radial'){ const t=tex('radial'), n=t.n.clone(), a=t.a.clone(); n.needsUpdate=a.needsUpdate=true; m.normalMap=n; m.normalScale.set(V.ns,V.ns); m.anisotropyMap=a; m.anisotropy=V.an; }
+  else if(key){ useN(tex(key).n,V.T,V.ns); if(V.an) m.anisotropy=V.an; }
+  if(F.cols==='tint'){ const t=tex('wood:'+(s.ess||'noce')), c=t.c.clone(); c.needsUpdate=true; c.repeat.set(uvmm/250,uvmm/250); c.rotation=rot; m.map=c; m.color.set(s.tint||'#ffffff'); useN(t.n,250,0.25); }
+  if(V.mix){ const c=tex('mix').c.clone(); c.needsUpdate=true; c.repeat.set(rep(V.T),rep(V.T)); c.rotation=rot; m.map=c; }
+  if(key==='patina'){ const c=tex('patina').c.clone(); c.needsUpdate=true; c.repeat.set(rep(V.T),rep(V.T)); m.map=c; }
+  if(F.cols==='photo'){ const S=p.samples&&p.samples[s.foto]; if(S&&PHOTO[s.foto]){ const P=PHOTO[s.foto], T=S.mm||40; const c=P.c.clone(), n=P.n.clone(); c.needsUpdate=n.needsUpdate=true;
+      for(const t of [c,n]){ t.repeat.set(uvmm/T,uvmm/T); t.rotation=rot; } m.map=c; m.color.set('#ffffff'); m.normalMap=n; m.normalScale.set(S.ns??0.5,S.ns??0.5); m.metalness=S.met?0.85:0; if(S.an) m.anisotropy=0.7; } }
+  if(V.cc||((F===FAM.ottone||F===FAM.rame)&&s.prot==='lacca')){ m.clearcoat=V.cc||0.55; m.clearcoatRoughness=V.cc?0.02:0.08; if(s.fam==='vetro'&&s.var==='retro'){ m.roughness=0.35; } }
+  if(V.sh){ m.sheen=V.sh; const c=new THREE.Color(col); m.sheenColor=c.clone().lerp(new THREE.Color(1,1,1),0.35); m.sheenRoughness=0.55; }
+  if(V.tr){ m.transmission=V.tr; m.thickness=ctx.thick||3; m.ior=s.fam==='acrilico'?1.49:1.52; m.metalness=0; if(V.fu){ m.attenuationColor.set(s.col||'#5a5e62'); m.attenuationDistance=6; m.color.set('#ffffff'); } else if(s.fam==='vetro'){ m.attenuationColor.set('#e8f1ee'); m.attenuationDistance=60; m.color.set('#ffffff'); } }
+  if(V.op){ m.color.set('#f4f3ef'); m.sheen=0.3; m.sheenColor.set('#ffffff'); }
+  // invecchiamento
+  if(age>0){ const fp=V.fp||0, sc=V.sc||0; if(fp+sc>0.05||V.deg){ const a=ageTex(m.roughness,fp,sc,V.deg?1:0,age).clone(); a.needsUpdate=true; a.repeat.set(uvmm/AGE_T,uvmm/AGE_T); m.roughnessMap=a; m.roughness=1; }
+    const pa=(V.pa||0)*(s.prot==='lacca'?0.12:s.prot==='cera'?0.5:1); if(pa>0){ const k=clamp(age/2,0,1)*pa; m.color.lerp(new THREE.Color('#5d4a30'),0.45*k); if(!m.map){ const c=tex('patina').c.clone(); c.needsUpdate=true; c.repeat.set(uvmm/80,uvmm/80); m.map=c; } m.roughness=Math.max(m.roughness,lerp(m.roughness,0.45,k)); }
+    if(V.uv||F.cols==='anod'&&(ANOD[s.anod]||[])[2]===0){ const k=clamp(age/10,0,1)*(V.uv||0.35); const hsl={}; m.color.getHSL(hsl); m.color.setHSL(hsl.h,hsl.s*(1-0.35*k),clamp(hsl.l+(F.cols==='tint'?-0.06:0.06)*k,0,1)); } }
+  if(ctx.zone==='lente'&&ctx.pt&&ctx.pt.g.on){ m.emissive.set(ctx.pt.g.lc); m.emissiveIntensity=2.2; m.transmission=0; }
+  return m; }
+
+/* ---------- progetto ---------- */
+const PHOTO={};   // id del campione → trame (colore e rilievo) ricavate dalla foto
+const DEFP={ officina:'finiture', nome:'Nuovo progetto', cliente:'', codice:'', autore:'', note:'', parts:[], variants:[{name:'A',asg:{},hide:[]}], cur:0, sel:'', zone:'',
+  env:'studio', envRot:0, expo:1, shadow:true, age:0, qty:100, tolE:1, tolG:5, samples:{}, side:false };
+function defSpec(kind,zone){ const S=(fam,v,sub,x)=>({fam,var:v,sub,dir:0,ts:1,tn:1,...x});
+  switch(kind+'.'+zone){
+    case 'manopola.corpo': case 'manopola.faccia': return S('anod','spazzolato','al_tornito',{anod:'naturale'});
+    case 'manopola.indice': return S('segno','laser','',{col:'#f1ece1'});
+    case 'pannello.piano': return S('anod','spazzolato','al_lamiera',{anod:'nero'});
+    case 'pannello.scritte': case 'scatola.scritte': return S('segno','serigrafia','',{col:'#f1ece1',code:'RAL 9010'});
+    case 'scatola.corpo': case 'scatola.fronte': return S('polvere','goffrata','acciaio',{col:'#0e0e10',code:'RAL 9005'});
+    case 'griglia.lamiera': return S('polvere','liscia','acciaio',{col:'#0e0e10',code:'RAL 9005',gu:30,coat:0.15});
+    case 'telaio.tessuto': return S('tessuto','maglia','tessuto',{col:'#2a2b2e'});
+    case 'altoparlante.telaio': return S('plastica','satinata','plastica',{col:'#1d1e20'});
+    case 'altoparlante.sospensione': return S('membrana','gomma','gomma',{col:'#1a1a1b'});
+    case 'altoparlante.cono': return S('membrana','carta','carta',{col:'#2a2a2b'});
+    case 'altoparlante.cupola': return S('membrana','seta','tessuto',{col:'#232324'});
+    case 'componente.metallo': return S('galv','nichelsat','zama');
+    case 'componente.lente': return S('acrilico','lucido','pmma',{col:'#ff3b2f'});
+    case 'stl.superficie': return S('plastica','fdm','stampa3d',{col:'#2b2f34'});
+  } return S('polvere','liscia','acciaio',{col:'#808080'}); }
+function newPart(kind,o={}){ return {id:uid(),kind,name:o.name||KIND[kind].n,g:{...KIND[kind].g,...(o.g||{})},x:o.x||0,y:o.y||0,z:o.z||0,rx:o.rx||0,ry:o.ry||0,rz:o.rz||0}; }
+let p=clone(DEFP);
+const curV=()=>p.variants[clamp(p.cur,0,p.variants.length-1)];
+const partById=id=>p.parts.find(q=>q.id===id);
+const selPart=()=>partById(p.sel)||p.parts[0]||null;
+function specFor(vi,pt,zone){ const v=p.variants[vi], z=aliasZone(pt,zone); v.asg[pt.id]=v.asg[pt.id]||{}; let s=v.asg[pt.id][z];
+  if(!s){ s=v.asg[pt.id][z]=defSpec(pt.kind,z); if(pt.kind==='manopola'&&z==='faccia'&&v.asg[pt.id].corpo) Object.assign(s,clone(v.asg[pt.id].corpo)); } return s; }
+// la marcatura sta sopra un'altra finitura: quale
+function baseOfMark(vi,pt,zone){ if(pt.kind==='manopola') return specFor(vi,pt,pt.g.ptr==='lato'?'corpo':'faccia'); if(pt.kind==='pannello') return specFor(vi,pt,'piano'); if(pt.kind==='scatola') return specFor(vi,pt,'fronte'); return null; }
+const hidden=(vi,pt)=>(p.variants[vi].hide||[]).includes(pt.id);
+
+/* ---------- scena ---------- */
+const stage=$('stage');
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:false}); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; renderer.setScissorTest(false);
+maxAniso=renderer.capabilities.getMaxAnisotropy();
+stage.prepend(renderer.domElement);
+const scene=new THREE.Scene(), camera=new THREE.PerspectiveCamera(28,1,1,50000);
+const controls=new OrbitControls(camera,renderer.domElement); controls.enableDamping=false; controls.addEventListener('change',()=>requestRender());
+const root=new THREE.Group(); scene.add(root);           // tutti i pezzi; gira su se stesso con «Gira»
+const key=new THREE.DirectionalLight(0xffffff,1); key.castShadow=true; key.shadow.mapSize.set(2048,2048); key.shadow.bias=-0.0004; key.shadow.normalBias=0.4; scene.add(key,key.target);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.ShadowMaterial({opacity:0.25})); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+const pmrem=new THREE.PMREMGenerator(renderer);
+let envTex=null, envKey='';
+function envScene(type,rot){ const s=new THREE.Scene(), g=new THREE.Group(); s.add(g); g.rotation.y=rot*Math.PI/180;
+  const M=(c,k=1)=>new THREE.MeshBasicMaterial({color:new THREE.Color(...c).multiplyScalar(k),side:THREE.DoubleSide});
+  const room=(c,k)=>{ const b=new THREE.Mesh(new THREE.BoxGeometry(20,20,20),M(c,k)); b.material.side=THREE.BackSide; g.add(b); };
+  const panel=(w,h,pos,c,k)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),M(c,k)); m.position.set(...pos); m.lookAt(0,0,0); g.add(m); return m; };
+  const floor=(c,k)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(20,20),M(c,k)); m.rotation.x=-Math.PI/2; m.position.y=-9.95; g.add(m); };
+  if(type==='studio'){ room([0.5,0.51,0.53],0.16); floor([0.3,0.3,0.31],0.25); panel(8,8,[0,9.9,1.5],[1,1,1],7); panel(2,10,[9.9,1,2],[0.97,0.99,1],5); panel(2,10,[-9.9,1,-1],[1,0.99,0.97],3.5); panel(12,3,[0,-1,9.9],[1,1,1],0.9); panel(6,2.2,[-4,4,-9.9],[1,1,1],2.2); }
+  else if(type==='finestra'){ room([0.82,0.8,0.76],0.5); floor([0.38,0.27,0.18],0.6); panel(7,8,[-9.9,1.5,0],[0.86,0.93,1],9); panel(20,20,[0,9.95,0],[0.95,0.95,0.93],0.75); panel(7,8,[9.9,0,0],[0.9,0.88,0.84],0.7); }
+  else if(type==='salotto'){ room([0.16,0.11,0.08],0.6); floor([0.2,0.13,0.08],0.6); for(const [x,y,z,k] of [[6.5,2.5,5,40],[-7,4,-3,22]]){ const l=new THREE.Mesh(new THREE.SphereGeometry(0.7,16,12),M([1,0.66,0.36],k)); l.position.set(x,y,z); g.add(l); } panel(20,20,[0,9.95,0],[0.35,0.25,0.17],0.4); panel(6,3,[0,1,-9.9],[0.4,0.45,0.55],0.3); }
+  else { room([0,0,0],0); panel(1.4,12,[7,1,-6],[1,1,1],10); panel(1.4,12,[-7,1,-6],[1,1,1],10); panel(12,1.6,[0,9.5,0.5],[1,1,1],5); panel(14,6,[0,3,9.9],[1,1,1],2.6); panel(3,10,[9.9,0,4],[1,1,1],1.4); }
+  return s; }
+const ENVL={ studio:{d:[0.15,1,0.45],c:'#ffffff',i:1.6,sh:0.22,bg:['#d4d6da','#b7bbc2']}, finestra:{d:[-1,0.55,0.25],c:'#dde9ff',i:2.0,sh:0.28,bg:['#ecebe7','#cfccc4']},
+  salotto:{d:[0.75,0.35,0.6],c:'#ffb36b',i:1.2,sh:0.4,bg:['#3b2d22','#17110d'],dark:1}, nero:{d:[0,1,-0.6],c:'#ffffff',i:0.8,sh:0.55,bg:['#0d0d0e','#000000'],dark:1} };
+function bgTex(a,b){ const c=document.createElement('canvas'); c.width=4; c.height=256; const x=c.getContext('2d'), g=x.createLinearGradient(0,0,0,256); g.addColorStop(0,a); g.addColorStop(1,b); x.fillStyle=g; x.fillRect(0,0,4,256); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; }
+function applyEnv(){ const k=p.env+'|'+p.envRot; const E=ENVL[p.env]||ENVL.studio;
+  if(k!==envKey){ envKey=k; const s=envScene(p.env,p.envRot), rt=pmrem.fromScene(s,0.035); if(envTex) envTex.dispose(); envTex=rt.texture; scene.environment=envTex; s.traverse(o=>{ if(o.geometry) o.geometry.dispose(); }); }
+  if(scene.background) scene.background.dispose(); scene.background=bgTex(...E.bg); renderer.toneMappingExposure=p.expo;
+  const a=p.envRot*Math.PI/180, d=new THREE.Vector3(...E.d).normalize(); d.applyAxisAngle(new THREE.Vector3(0,1,0),a); key.userData.dir=d; key.color.set(E.c); key.intensity=E.i*(p.shadow?1:0.0001);
+  ground.material.opacity=p.shadow?E.sh:0; stage.dataset.dark=!!E.dark; placeLight(); requestRender(); }
+
+/* ---------- pezzi in 3D ---------- */
+const PG=new Map();   // id → {grp, sig, meshes:[]}
+function zoneMeshes(pt){ const g=pt.g, out=[]; const add=(zone,geo,ud={})=>{ if(geo) out.push({zone,geo,ud}); };
+  if(pt.kind==='pannello'){ const b=blockGeo(g.W,g.H,g.t,g.r,g.b); b.front.translate(0,0,g.t/2); b.rest.translate(0,0,g.t/2); add('piano',mergeG([b.front,b.rest])); }
+  else if(pt.kind==='scatola'){ const b=blockGeo(g.W,g.H,g.D,g.r,g.b); add('corpo',b.rest); add('fronte',b.front,{flat:1}); }
+  else if(pt.kind==='telaio'){ const b=blockGeo(g.W,g.H,g.t,g.r,Math.min(g.t*0.4,6)); b.front.translate(0,0,g.t/2); b.rest.translate(0,0,g.t/2); add('tessuto',mergeG([b.front,b.rest])); }
+  else if(pt.kind==='manopola'){ const k=knobGeo(g); add('corpo',k.corpo); add('faccia',k.faccia,{uvmm:k.faccia.userData.uvmm,face:1}); if(k.indice) add('indice',k.indice,{mark:1}); }
+  else if(pt.kind==='griglia'){ const q=gridGeo(g); add('lamiera',q.plate,{grid:1,double:1}); add('lamiera',q.edge,{}); }
+  else if(pt.kind==='altoparlante'){ const k=speakerGeo(g); for(const z of ['telaio','sospensione','cono','cupola']) add(z,k[z]); }
+  else if(pt.kind==='componente'){ const k=compGeo(g); add('metallo',k.metallo); if(k.lente) add('lente',k.lente,{thick:2}); }
+  else if(pt.kind==='stl'){ const M=MESHES[g.mesh]; if(M){ const pos=M.pos.slice(); if(g.sc!==1) for(let i=0;i<pos.length;i++) pos[i]*=g.sc; const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); geo.setAttribute('normal',new THREE.BufferAttribute(creased(pos),3)); boxUV(geo); add('superficie',geo); } }
+  return out; }
+function triArea(g){ const P=g.attributes.position, I=g.index, a=new THREE.Vector3(), b=new THREE.Vector3(), c=new THREE.Vector3(); let s=0; const n=I?I.count:P.count;
+  for(let t=0;t<n;t+=3){ const i0=I?I.getX(t):t, i1=I?I.getX(t+1):t+1, i2=I?I.getX(t+2):t+2; a.fromBufferAttribute(P,i0); b.fromBufferAttribute(P,i1); c.fromBufferAttribute(P,i2); s+=b.sub(a).cross(c.sub(a)).length()/2; } return s; }
+function polyArea(P){ let s=0; for(let i=0;i<P.length;i++){ const a=P[i], b=P[(i+1)%P.length]; s+=a[0]*b[1]-b[0]*a[1]; } return Math.abs(s)/2; }
+function buildPart(pt){ let e=PG.get(pt.id); const sig=pt.kind+JSON.stringify(pt.g);
+  if(!e){ e={grp:new THREE.Group(),sig:'',meshes:[],leg:null}; e.grp.userData.pid=pt.id; root.add(e.grp); PG.set(pt.id,e); }
+  if(e.sig!==sig){ for(const m of e.meshes){ m.geometry.dispose(); e.grp.remove(m); } e.meshes=[]; e.sig=sig;
+    for(const {zone,geo,ud} of zoneMeshes(pt)){ const m=new THREE.Mesh(geo); m.userData={pid:pt.id,zone,uvmm:1,...ud}; m.castShadow=!ud.grid&&!ud.mark; m.receiveShadow=!ud.mark;
+      if(ud.mark){ m.renderOrder=2; }
+      m.userData.area=ud.grid?polyArea(gridOutline(pt.g,200))*(1-openArea(pt.g))*2:triArea(geo); e.grp.add(m); e.meshes.push(m); } }
+  e.grp.position.set(pt.x,pt.y,pt.z); e.grp.rotation.set(pt.rx*Math.PI/180,pt.ry*Math.PI/180,pt.rz*Math.PI/180); return e; }
+// scritte e scale serigrafate o incise attorno alle manopole che stanno sulla faccia di un pannello o di una scatola
+function legendFor(pt){ const g=pt.g; if(!(pt.kind==='pannello'||pt.kind==='scatola')||!g.leg) return null;
+  const W=g.W, H=g.H, zf=pt.kind==='pannello'?g.t:g.D/2, e=PG.get(pt.id); e.grp.updateMatrixWorld(true); const inv=e.grp.matrixWorld.clone().invert(), list=[];
+  for(const k of p.parts){ if(k.kind!=='manopola') continue; const ke=PG.get(k.id); if(!ke) continue; ke.grp.updateMatrixWorld(true);
+    const o=new THREE.Vector3().setFromMatrixPosition(ke.grp.matrixWorld).applyMatrix4(inv), ax=new THREE.Vector3(0,0,1).transformDirection(ke.grp.matrixWorld).transformDirection(inv);
+    if(ax.z>0.95&&Math.abs(o.x)<W/2&&Math.abs(o.y)<H/2&&Math.abs(o.z-zf)<12) list.push({x:o.x,y:o.y,R:(k.g.skirt?Math.max(k.g.sD,k.g.D):k.g.D)/2,lab:k.g.lab||''}); }
+  if(!list.length) return null;
+  const ppm=Math.min(14,4096/Math.max(W,H)), cv=document.createElement('canvas'); cv.width=Math.ceil(W*ppm); cv.height=Math.ceil(H*ppm); const c=cv.getContext('2d');
+  c.fillStyle='#000'; c.fillRect(0,0,cv.width,cv.height); c.setTransform(ppm,0,0,-ppm,cv.width/2,cv.height/2); c.strokeStyle=c.fillStyle='#fff'; c.lineCap='round';
+  for(const k of list){ const r0=k.R+1.6, fs=clamp(k.R*0.32,2.2,4.2);
+    for(let i=0;i<=10;i++){ const a=(-150+i*30)*Math.PI/180, L=i%5===0?2.3:1.4; c.lineWidth=i%5===0?0.45:0.32; c.beginPath(); c.moveTo(k.x+Math.sin(a)*r0,k.y+Math.cos(a)*r0); c.lineTo(k.x+Math.sin(a)*(r0+L),k.y+Math.cos(a)*(r0+L)); c.stroke(); }
+    if(k.lab){ c.save(); c.translate(k.x,k.y-r0-2.6-fs*0.8); c.scale(1,-1); c.font=`600 ${fs}px "IBM Plex Sans Condensed","Arial Narrow",sans-serif`; try{ c.letterSpacing=(fs*0.1)+'px'; }catch(err){} c.textAlign='center'; c.textBaseline='middle'; c.fillText(k.lab.toUpperCase(),0,0); c.restore(); } }
+  const t=new THREE.CanvasTexture(cv); t.anisotropy=maxAniso; t.colorSpace=THREE.NoColorSpace;
+  const geo=new THREE.PlaneGeometry(W,H); geo.translate(0,0,zf+0.04); return {geo,t}; }
+function buildAll(){ const ids=new Set(p.parts.map(q=>q.id));
+  for(const [id,e] of PG) if(!ids.has(id)){ root.remove(e.grp); for(const m of e.meshes) m.geometry.dispose(); if(e.leg){ e.leg.geometry.dispose(); } PG.delete(id); }
+  for(const pt of p.parts) buildPart(pt);
+  root.updateMatrixWorld(true);
+  for(const pt of p.parts){ const e=PG.get(pt.id); if(e.leg){ e.grp.remove(e.leg); e.leg.geometry.dispose(); e.leg.userData.tex.dispose(); e.leg=null; }
+    const L=legendFor(pt); if(L){ const m=new THREE.Mesh(L.geo); m.userData={pid:pt.id,zone:'scritte',mark:1,tex:L.t,area:0}; m.renderOrder=2; e.grp.add(m); e.leg=m; } }
+  matSweep(); }
+
+/* ---------- materiali per variante ---------- */
+const MC=new Map();
+function matFor(vi,m){ const pt=partById(m.userData.pid); if(!pt) return null; const zone=m.userData.zone, s=specFor(vi,pt,zone), base=famOf(s).segno?baseOfMark(vi,pt,zone):null;
+  const k=vi+'|'+pt.id+'|'+zone+'|'+m.id, sig=JSON.stringify([s,base,p.age,m.userData.uvmm,zone==='lente'?[pt.g.on,pt.g.lc]:0,s.fam==='foto'?(p.samples[s.foto]||{}).v:0]);
+  let e=MC.get(k); if(e&&e.sig===sig) return e.m;
+  if(e) disposeMat(e.m);
+  const mm=makeMat(s,{uvmm:m.userData.uvmm,face:m.userData.face,double:m.userData.double,base,zone,pt,thick:m.userData.thick});
+  if(m.userData.grid){ const a=new THREE.CanvasTexture(gridAlpha(pt.g)); a.channel=1; a.anisotropy=maxAniso; a.colorSpace=THREE.NoColorSpace; mm.alphaMap=a; mm.alphaTest=0.5; mm.side=THREE.DoubleSide; mm.userData.own=[a]; }
+  if(m.userData.tex){ mm.alphaMap=m.userData.tex; mm.transparent=true; mm.depthWrite=false; mm.polygonOffset=true; mm.polygonOffsetFactor=-2; mm.polygonOffsetUnits=-2; }
+  if(m.userData.mark&&!m.userData.tex){ mm.polygonOffset=true; mm.polygonOffsetFactor=-2; mm.polygonOffsetUnits=-2; }
+  MC.set(k,{m:mm,sig}); return mm; }
+function disposeMat(m){ for(const k of ['map','normalMap','roughnessMap','anisotropyMap']) if(m[k]&&m[k].isTexture&&!TEXC_has(m[k])) m[k].dispose(); if(m.userData.own) m.userData.own.forEach(t=>t.dispose()); m.dispose(); }
+const TEXC_has=t=>false;
+function matSweep(){ const live=new Set(); for(const [,e] of PG){ for(const m of [...e.meshes,e.leg].filter(Boolean)) for(let vi=0;vi<p.variants.length;vi++) live.add(vi+'|'+m.userData.pid+'|'+m.userData.zone+'|'+m.id); }
+  for(const [k,e] of MC) if(!live.has(k)){ disposeMat(e.m); MC.delete(k); } }
+function applyVariant(vi){ for(const pt of p.parts){ const e=PG.get(pt.id); if(!e) continue; e.grp.visible=!hidden(vi,pt);
+    for(const m of [...e.meshes,e.leg].filter(Boolean)) m.material=matFor(vi,m); }
+  if(hovMesh&&hovVi===vi&&hovMesh.material){ const m=hovMesh.material; if(hovMat!==m){ unHov(); hovMat=m; m.userData.em=[m.emissive.getHex(),m.emissiveIntensity]; } m.emissive.set(css('--accent')); m.emissiveIntensity=0.35; } }
+let hovMat=null; function unHov(){ if(hovMat&&hovMat.userData.em){ hovMat.emissive.setHex(hovMat.userData.em[0]); hovMat.emissiveIntensity=hovMat.userData.em[1]; } hovMat=null; }
+
+/* ---------- inquadratura e disegno ---------- */
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function sceneBox(){ const b=new THREE.Box3(); root.updateMatrixWorld(true); for(const pt of p.parts){ const e=PG.get(pt.id); if(!e) continue; let any=false; for(let vi=0;vi<p.variants.length;vi++) if(!hidden(vi,pt)) any=true; if(any) b.expandByObject(e.grp); } if(b.isEmpty()) b.set(new THREE.Vector3(-50,-50,-50),new THREE.Vector3(50,50,50)); return b; }
+function placeLight(){ const b=sceneBox(), c=b.getCenter(new THREE.Vector3()), s=b.getSize(new THREE.Vector3()).length()||200, d=key.userData.dir||new THREE.Vector3(0,1,0.4);
+  ground.position.set(c.x,b.min.y-0.05,c.z); ground.scale.set(s*8,s*8,1);
+  key.target.position.copy(c); key.position.copy(c).addScaledVector(d,s*1.6); const sc=key.shadow.camera; sc.left=sc.bottom=-s*0.8; sc.right=sc.top=s*0.8; sc.near=s*0.2; sc.far=s*4; sc.updateProjectionMatrix(); }
+let view='libera';
+function fit(){ const b=sceneBox(), c=b.getCenter(new THREE.Vector3()), sz=b.getSize(new THREE.Vector3()), r=sz.length()/2||100, asp=vpAspect(), d=r/Math.sin(camera.fov*Math.PI/360)/Math.min(1,asp)*0.92;
+  controls.target.copy(c); if(view==='fronte') camera.position.set(c.x,c.y,c.z+d); else if(view==='alto') camera.position.set(c.x,c.y+d*0.94,c.z+d*0.34); else camera.position.set(c.x+d*0.48,c.y+d*0.32,c.z+d*0.82);
+  camera.near=Math.max(0.5,d/100); camera.far=d*20; camera.updateProjectionMatrix(); controls.update(); placeLight(); requestRender(); }
+function vps(){ const n=p.side?p.variants.length:1, w=stage.clientWidth, h=stage.clientHeight; if(n<=1) return [{vi:p.cur,x:0,y:0,w,h}];
+  const b=sceneBox(), sz=b.getSize(new THREE.Vector3()), wide=Math.max(sz.x,sz.z*0.6)/Math.max(1,sz.y)>1.3;
+  const [cols,rows]=n===2?(w/h>(wide?1.6:0.9)?[2,1]:[1,2]):n===3?(w/h>(wide?2.6:1.5)?[3,1]:[2,2]):[2,2], out=[]; for(let i=0;i<n;i++){ const cx=i%cols, cy=Math.floor(i/cols); out.push({vi:i,x:Math.round(cx*w/cols),y:Math.round(cy*h/rows),w:Math.round(w/cols),h:Math.round(h/rows)}); } return out; }
+const vpAspect=()=>{ const v=vps()[0]; return v.w/Math.max(1,v.h); };
+let raf=0, spinOn=false, lastT=0;
+function requestRender(){ if(!raf) raf=requestAnimationFrame(draw); }
+function draw(t){ raf=0; if(spinOn){ const dt=lastT?Math.min(0.05,(t-lastT)/1000):0; root.rotation.y+=dt*0.45; lastT=t; requestRender(); } else lastT=0;
+  const V=vps(), H=stage.clientHeight; renderer.setScissorTest(V.length>1);
+  for(const v of V){ applyVariant(v.vi); camera.aspect=v.w/Math.max(1,v.h); camera.updateProjectionMatrix(); renderer.setViewport(v.x,H-v.y-v.h,v.w,v.h); renderer.setScissor(v.x,H-v.y-v.h,v.w,v.h); renderer.render(scene,camera); }
+  if(V.length===1) applyVariant(p.cur); labels(V); }
+function labels(V){ const box=$('vLab'); if(V.length<2){ box.innerHTML=''; return; }
+  box.innerHTML=V.map(v=>`<div class="${v.vi===p.cur?'on':''}" style="left:${v.x+12}px;top:${v.y+(v.y?12:62)}px;max-width:${v.w-24}px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.variants[v.vi].name)}</div>`).join('')
+    +V.filter(v=>v.x>0).map(v=>`<i style="left:${v.x}px;top:${v.y}px;width:1px;height:${v.h}px"></i>`).join('')+V.filter(v=>v.y>0).map(v=>`<i style="left:${v.x}px;top:${v.y}px;height:1px;width:${v.w}px"></i>`).join(''); }
+new ResizeObserver(()=>{ const w=stage.clientWidth,h=stage.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); requestRender(); }).observe(stage);
+
+/* ---------- parti sotto il puntatore ---------- */
+const ray=new THREE.Raycaster(), rayV=new THREE.Vector2(); let hovMesh=null, hovVi=-1, downXY=null;
+function pick(cx,cy){ const r=renderer.domElement.getBoundingClientRect(), x=cx-r.left, y=cy-r.top, v=vps().find(v=>x>=v.x&&x<v.x+v.w&&y>=v.y&&y<v.y+v.h); if(!v) return null;
+  camera.aspect=v.w/v.h; camera.updateProjectionMatrix(); rayV.set((x-v.x)/v.w*2-1,1-(y-v.y)/v.h*2); ray.setFromCamera(rayV,camera);
+  const ms=[]; for(const pt of p.parts){ if(hidden(v.vi,pt)) continue; const e=PG.get(pt.id); if(e) ms.push(...e.meshes); }
+  const h=ray.intersectObjects(ms,false).find(h=>{ if(!h.object.userData.grid) return true; const a=h.object.material&&h.object.material.alphaMap; if(!a||!h.uv1) return true; const img=a.image, cx2=img.getContext('2d'); const px=cx2.getImageData(Math.floor(h.uv1.x*(img.width-1)),Math.floor((1-h.uv1.y)*(img.height-1)),1,1).data; return px[0]>127; });
+  return h?{m:h.object,vi:v.vi}:null; }
+function setHover(h){ const m=h&&h.m; if(hovMesh===m&&(!h||hovVi===h.vi)) return; unHov(); hovMesh=m||null; hovVi=h?h.vi:-1; requestRender(); }
+renderer.domElement.addEventListener('pointermove',e=>{ if(e.buttons){ $('hint').hidden=true; return; } const h=pick(e.clientX,e.clientY); setHover(h); const hint=$('hint');
+  if(!h){ hint.hidden=true; return; } const pt=partById(h.m.userData.pid), z=h.m.userData.zone, s=specFor(h.vi,pt,z), F=famOf(s), V=varOf(s), r=stage.getBoundingClientRect();
+  hint.innerHTML=`${esc(pt.name)} · ${esc(zoneName(pt,z))} <small>${esc(F.n)}, ${esc(V.n.toLowerCase())}</small>`; hint.hidden=false; hint.style.left=Math.min(r.width-hint.offsetWidth-8,e.clientX-r.left+14)+'px'; hint.style.top=(e.clientY-r.top+16)+'px'; });
+renderer.domElement.addEventListener('pointerleave',()=>{ setHover(null); $('hint').hidden=true; });
+renderer.domElement.addEventListener('pointerdown',e=>{ downXY=[e.clientX,e.clientY]; });
+renderer.domElement.addEventListener('pointerup',e=>{ if(!downXY||Math.hypot(e.clientX-downXY[0],e.clientY-downXY[1])>4) return; const h=pick(e.clientX,e.clientY); if(!h) return;
+  p.cur=h.vi; p.sel=h.m.userData.pid; p.zone=aliasZone(partById(p.sel),h.m.userData.zone); setSec(SCHEMA.findIndex(s=>s.id==='finitura')); update(); });
+
+/* ---------- schema dell'interfaccia ---------- */
+// o: dove sta il valore — 'p' progetto, 'pt' pezzo scelto, 'g' misure del pezzo, 's' finitura della zona scelta nella variante attiva
+const R=(o,k,l,min,max,step,u,show)=>({o,k,l,type:'r',min,max,step,u,show});
+const S=(o,k,l,opts,show,ok)=>({o,k,l,type:'s',opts,show,ok});
+const C=(o,k,l,show)=>({o,k,l,type:'c',show});
+const T=(o,k,l,show,ph)=>({o,k,l,type:'t',show,ph});
+const K=(o,k,l,show)=>({o,k,l,type:'k',show});
+const G=(l,show)=>({type:'g',l,show});
+const B=(id,l,icon,title,show)=>({type:'b',id,l,icon,title,show});
+const W=(id,render,show)=>({type:'w',id,render,show});
+const isK=k=>c=>c.pt&&c.pt.kind===k, isKs=(...ks)=>c=>c.pt&&ks.includes(c.pt.kind);
+const notMark=c=>c.F&&!c.F.segno, hasTex=c=>c.V&&(!!c.V.tex||c.F.cols==='tint'||c.F.cols==='photo');
+function ctx(){ const pt=selPart(); if(!pt) return {p}; let z=p.zone; const zs=zonesOf(pt); if(!zs.includes(z)) z=p.zone=zs[0]; z=aliasZone(pt,z); const s=specFor(p.cur,pt,z); return {p,pt,zone:z,s,F:famOf(s),V:varOf(s)}; }
+const SCHEMA=[
+ {t:'Banco di composizione', id:'banco', short:'Banco', sum:c=>`${p.parts.length} pezzi`+(c.pt?` · ${c.pt.name}`:''), f:[
+   W('wParts',wParts), W('wAdd',wAdd),
+   G('Pezzo scelto',c=>!!c.pt), T('pt','name','Nome',c=>!!c.pt),
+   W('wPresent',wPresent,c=>!!c.pt&&p.variants.length>1),
+   R('g','W','Larghezza',5,1500,0.5,'mm',isKs('pannello','scatola','telaio','griglia')), R('g','H','Altezza',5,1500,0.5,'mm',c=>isKs('pannello','scatola','telaio')(c)||(isK('griglia')(c)&&c.pt.g.shape!=='tonda')),
+   R('g','D','Profondità',5,1000,0.5,'mm',isK('scatola')), R('g','t','Spessore',0.3,60,0.1,'mm',isKs('pannello','telaio','griglia')),
+   R('g','r','Raggio degli spigoli',0,200,0.5,'mm',c=>isKs('pannello','scatola','telaio')(c)||(isK('griglia')(c)&&c.pt.g.shape==='rett')),
+   R('g','b','Raccordo dei bordi',0,20,0.1,'mm',isKs('pannello','scatola')),
+   C('g','front','Faccia frontale con una finitura diversa',isK('scatola')), C('g','leg','Scritte e scale attorno alle manopole',isKs('pannello','scatola')),
+   S('g','shape','Contorno',{rett:'Rettangolare',tonda:'Tonda',stadio:'A stadio'},isK('griglia')), R('g','Dg','Diametro',20,1000,1,'mm',c=>isK('griglia')(c)&&c.pt.g.shape==='tonda'),
+   S('g','pat','Foratura',PAT,isK('griglia')), R('g','hd','Foro (diametro o larghezza)',0.5,30,0.1,'mm',isK('griglia')), R('g','pitch','Passo',1,40,0.1,'mm',isK('griglia')),
+   R('g','slotL','Lunghezza delle asole',2,80,0.5,'mm',c=>isK('griglia')(c)&&c.pt.g.pat==='asole'), R('g','margin','Cornice senza fori',0,80,0.5,'mm',isK('griglia')), R('g','dome','Bombatura',0,40,0.5,'mm',isK('griglia')),
+   R('g','D','Diametro',4,120,0.5,'mm',isK('manopola')), R('g','Dt','Diametro in alto',4,120,0.5,'mm',isK('manopola')), R('g','H','Altezza',3,80,0.5,'mm',isK('manopola')),
+   R('g','er','Raccordo in alto',0,10,0.1,'mm',isK('manopola')), S('g','grip','Presa',{liscia:'Liscia',zigrinata:'Zigrinata',scanalata:'Scanalata',lobi:'A lobi'},isK('manopola')),
+   R('g','N','Righe o lobi',3,120,1,'',c=>isK('manopola')(c)&&c.pt.g.grip!=='liscia'), R('g','gd','Profondità della presa',0.1,8,0.05,'mm',c=>isK('manopola')(c)&&c.pt.g.grip!=='liscia'),
+   C('g','skirt','Gonna (disco alla base)',isK('manopola')), R('g','sD','Diametro della gonna',6,140,0.5,'mm',c=>isK('manopola')(c)&&c.pt.g.skirt), R('g','sH','Altezza della gonna',0.5,10,0.1,'mm',c=>isK('manopola')(c)&&c.pt.g.skirt),
+   S('g','top','Faccia',{piatto:'Piatta',concavo:'Concava',bombato:'Bombata'},isK('manopola')), R('g','conc','Profondità della faccia',0.1,4,0.05,'mm',c=>isK('manopola')(c)&&c.pt.g.top!=='piatto'),
+   S('g','ptr','Indice',{linea:'Linea sopra e sul fianco',punto:'Punto',lato:'Linea sul fianco',nessuno:'Nessuno'},isK('manopola')),
+   C('g','cap','Calotta con una finitura diversa',isK('manopola')), T('g','lab','Scritta sotto la manopola',isK('manopola'),'es. VOLUME'),
+   R('g','D','Diametro esterno',20,500,1,'mm',isK('altoparlante')),
+   S('g','tipo','Tipo',COMP,isK('componente')), C('g','on','LED acceso',c=>isK('componente')(c)&&c.pt.g.tipo==='led'), K('g','lc','Colore della luce',c=>isK('componente')(c)&&c.pt.g.tipo==='led'),
+   R('g','sc','Scala',0.01,100,0.01,'×',isK('stl')),
+   G('Posizione e rotazione',c=>!!c.pt), R('pt','x','Destra, sinistra',-1500,1500,0.5,'mm',c=>!!c.pt), R('pt','y','Su, giù',-1500,1500,0.5,'mm',c=>!!c.pt), R('pt','z','Avanti, indietro',-1500,1500,0.5,'mm',c=>!!c.pt),
+   R('pt','rx','Inclina avanti',-180,180,1,'°',c=>!!c.pt), R('pt','ry','Gira sul posto',-180,180,1,'°',c=>!!c.pt), R('pt','rz','Ruota nel piano',-180,180,1,'°',c=>!!c.pt),
+   B('bDup','Duplica il pezzo','copy','Una copia accanto, con le stesse finiture in tutte le varianti',c=>!!c.pt), B('bDel','Togli il pezzo dal banco','trash','Lo toglie da tutte le varianti',c=>!!c.pt) ]},
+ {t:'Materiale e finitura', id:'finitura', short:'Finitura', sum:c=>c.s?`${c.pt.name} · ${zoneName(c.pt,c.zone)} · ${c.F.n}`:'', f:[
+   W('wZone',wZone,c=>!!c.pt),
+   S('s','sub','Materiale di base',Object.fromEntries(Object.entries(SUB).map(([k,v])=>[k,v[0]])),c=>!!c.s&&notMark(c)),
+   S('s','fam','Finitura',c=>Object.fromEntries(Object.entries(FAM).filter(([k,F])=>c.F&&(c.F.segno?k==='segno':!F.segno&&(k!=='foto'||Object.keys(p.samples).length))).map(([k,F])=>[k,F.n])),c=>!!c.s,(c,v)=>FAM[v].segno||c.F.segno||(FAM[v].sub[c.s.sub]||0)>0),
+   S('s','var','Tipo',c=>c.F?Object.fromEntries(Object.entries(c.F.v).map(([k,v])=>[k,v.n])):{},c=>!!c.s),
+   S('s','ess','Essenza',Object.fromEntries(Object.entries(ESS).map(([k,v])=>[k,v[0]])),c=>c.F&&c.F.cols==='tint'),
+   S('s','prot','Protezione',{lacca:'Vernice trasparente (resta com\'è)',cera:'Cera (si scurisce piano)',nudo:'Nudo (si ossida)'},c=>c.F&&(c.s.fam==='ottone'||c.s.fam==='rame')&&c.V.pa>0.5),
+   S('s','foto','Campione',c=>Object.fromEntries(Object.entries(p.samples).map(([k,v])=>[k,v.name])),c=>c.F&&c.F.cols==='photo'),
+   W('wColor',wColor,c=>!!c.s),
+   T('s','code','Codice colore',c=>c.F&&['ral','free'].includes(c.F.cols)&&!(c.F.segno&&c.s.var==='laser'),'es. RAL 9005'), T('s','pms','Pantone',c=>c.F&&['ral','free','tint'].includes(c.F.cols)&&!(c.F.segno&&c.s.var==='laser'),'es. 426 C'),
+   T('s','ncs','NCS',c=>c.F&&['ral','free','tint'].includes(c.F.cols)&&!(c.F.segno&&c.s.var==='laser'),'es. S 9000-N'),
+   R('s','gu','Brillantezza (gloss a 60°)',1,99,1,'GU',c=>c.F&&!c.F.segno&&!isMetal(c.s)),
+   R('s','ra','Rugosità Ra',0.02,6.3,0.01,'µm',c=>c.F&&isMetal(c.s)&&c.V.tex!=='patina'),
+   R('s','dir','Direzione della trama',0,180,1,'°',c=>c.F&&!c.F.segno&&hasTex(c)), R('s','ts','Scala della trama',0.25,4,0.05,'×',c=>c.F&&!c.F.segno&&hasTex(c)),
+   R('s','tn','Rilievo della trama',0,2.5,0.05,'×',c=>c.F&&!c.F.segno&&hasTex(c)),
+   S('s','tint','Tinta (mordente)',{'#ffffff':'Naturale','#f3dcc0':'Miele','#c9a98c':'Noce chiaro','#a48d7d':'Grigio fumo','#7f7470':'Ebano leggero'},c=>c.F&&c.F.cols==='tint'),
+   R('s','coat','Riduzione dei fori per lato',0.02,0.4,0.01,'mm',c=>c.pt&&c.pt.kind==='griglia'&&['polvere','lacca','poliurea','galv'].includes(c.s.fam)),
+   B('bFoto','Campiona il materiale da una foto','camera','Ricava colore, grana e direzione da una foto di un campione vero',c=>!!c.s&&notMark(c)),
+   B('bCopyAll','Copia su tutti i pezzi uguali','copy','Stessa finitura sulla stessa zona di tutti i pezzi dello stesso tipo, in questa variante',c=>!!c.s),
+   B('bCopyVar','Copia in tutte le varianti','layers','Questa zona avrà questa finitura in tutte le varianti',c=>!!c.s&&p.variants.length>1) ]},
+ {t:'Luce e ambiente', id:'luce', short:'Luce', sum:()=>ENV[p.env][0]+(p.age?` · dopo ${p.age} anni`:''), f:[
+   W('wEnv',wEnv), R('p','envRot','Gira la luce',0,355,5,'°'), R('p','expo','Esposizione',0.3,2.5,0.05,'×'), C('p','shadow','Ombra sul piano'),
+   G('Invecchiamento'), R('p','age','Mostra il pezzo dopo',0,10,0.5,'anni'),
+   W('wAgeHelp',()=>'<p class="help">Impronte sulle superfici scure e lisce, graffi sulle vernici lucide, patina su ottone e rame non protetti, colori che sbiadiscono con la luce. È una simulazione indicativa, utile per confrontare le finiture tra loro.</p>') ]},
+ {t:'Varianti da confrontare', id:'varianti', short:'Varianti', sum:()=>`${p.variants.length} variant${p.variants.length>1?'i':'e'} · attiva ${curV().name}`, f:[
+   W('wVars',wVars), C('p','side','Affianca le varianti nella vista'),
+   W('wVarHelp',()=>'<p class="help">Ogni variante ha le sue finiture e può nascondere dei pezzi (per esempio la griglia). Forma e posizione dei pezzi sono le stesse. Un clic su un pezzo nella vista affiancata rende attiva quella variante.</p>') ]},
+ {t:'Produzione e scheda', id:'produzione', short:'Scheda', sum:()=>`lotto ${p.qty} pezzi`, f:[
+   R('p','qty','Pezzi per lotto',1,5000,1,'pz'),
+   G('Tolleranze da chiedere al fornitore'), R('p','tolE','Scarto di colore ammesso (ΔE2000)',0.3,3,0.1,''), R('p','tolG','Scarto di brillantezza ammesso',1,15,1,'± GU'),
+   G('Dati della scheda'), T('p','nome','Progetto'), T('p','codice','Codice articolo'), T('p','cliente','Cliente'), T('p','autore','Autore'), T('p','note','Note','', 'Per la scheda'),
+   B('bScheda2','Apri la scheda CMF','sheet','Scheda per il cliente o per il fornitore, da stampare o salvare in PDF') ]} ];
+const HELP={
+  gu:'Brillantezza misurata con il glossmetro a 60° (ISO 2813): sotto 10 GU opaco, 10–35 satinato, 35–70 semilucido, oltre 70 lucido. Per le polveri Qualicoat chiede ±5 GU rispetto al valore dichiarato.',
+  ra:'Rugosità media della superficie in micrometri: 0,05 specchio, 0,2–0,4 satinato fine, 0,5–0,8 spazzolato, 1,6–3,2 sabbiato. Sul disegno si scrive «Ra 0,8» con la direzione della spazzolatura.',
+  sub:'Di che cosa è fatto il pezzo sotto la finitura. Decide quali finiture sono possibili: l\'anodizzazione esiste solo sull\'alluminio, e sull\'alluminio pressofuso viene grigia e a chiazze.',
+  dir:'Direzione della spazzolatura, della venatura o degli strati di stampa. Sul disegno per il fornitore va indicata con una freccia.',
+  coat:'La polvere si deposita anche dentro i fori e sugli spigoli: ogni foro si stringe di circa 0,1–0,2 mm per lato (di più con due mani o con il primer). Serve per ricalcolare il vuoto su pieno.',
+  code:'Il codice che va al verniciatore. Per un colore fuori mazzetta conviene mandare un campione fisico.',
+  envRot:'Gira l\'ambiente attorno al pezzo: i riflessi scorrono sulle superfici come girando l\'oggetto sotto una lampada.',
+  expo:'Più luce o meno luce, come l\'esposizione di una fotografia.',
+  age:'Simula l\'uso quotidiano in casa o in studio: dita sulle manopole, oggetti appoggiati, luce dalla finestra.',
+  tolE:'Quanto può scostarsi il colore dal campione approvato. ΔE 1 è al limite di ciò che si vede affiancando i pezzi; tra lotti di anodizzazione ΔE 2–3 è normale.',
+  cap:'Calotta separata: la faccia superiore della manopola può avere una finitura diversa dal corpo (per esempio gomma con calotta in alluminio tornito).',
+  front:'La faccia frontale della scatola (quella con i comandi, o il pannello frontale di un mobile) ha una finitura sua.',
+  qty:'Il costo di avviamento (cambio colore, telai, cliché, vasca) si divide sul lotto: su pochi pezzi pesa molto.' };
+const ICONS={
+  banco:'<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="9" rx="2"/><circle cx="8" cy="7" r="3"/><path d="M14 4h6v5h-6z"/></svg>',
+  finitura:'<svg viewBox="0 0 24 24"><path d="M5 19c0-4 3-5 3-9a4 4 0 0 1 8 0c0 4 3 5 3 9z"/><path d="M8 15h8"/></svg>',
+  luce:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg>',
+  varianti:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="16" rx="2"/><rect x="13" y="4" width="8" height="16" rx="2"/></svg>',
+  produzione:'<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>',
+  copy:'<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>',
+  trash:'<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+  camera:'<svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+  layers:'<svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4"/></svg>',
+  sheet:'<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>',
+  k_pannello:'<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1.5"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/></svg>',
+  k_scatola:'<svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v9l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v9"/></svg>',
+  k_manopola:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v5"/></svg>',
+  k_griglia:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1"/><circle cx="12" cy="8" r="1"/><circle cx="16" cy="8" r="1"/><circle cx="10" cy="12" r="1"/><circle cx="14" cy="12" r="1"/><circle cx="8" cy="16" r="1"/><circle cx="12" cy="16" r="1"/><circle cx="16" cy="16" r="1"/></svg>',
+  k_telaio:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>',
+  k_altoparlante:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2"/></svg>',
+  k_componente:'<svg viewBox="0 0 24 24"><path d="M9 20h6M10 20v-6h4v6M8 14h8l-1-6H9z"/></svg>',
+  k_stl:'<svg viewBox="0 0 24 24"><path d="M12 3l8 5v8l-8 5-8-5V8z"/><path d="M12 13l8-5M12 13L4 8M12 13v8"/></svg>' };
+
+/* ---------- widget ---------- */
+function dotsOf(pt){ const vi=p.cur; return zonesOf(pt).filter(z=>z!=='scritte'&&z!=='indice').map(z=>colorOf(specFor(vi,pt,z))).filter((v,i,a)=>a.indexOf(v)===i).slice(0,4); }
+function wParts(){ return `<div id="partList">${p.parts.map(pt=>`<button type="button" data-pid="${pt.id}" aria-pressed="${pt.id===p.sel}" title="${esc(KIND[pt.kind].n)}">${ICONS['k_'+pt.kind]}<span><b>${esc(pt.name)}</b><small>${esc(KIND[pt.kind].n)}${hidden(p.cur,pt)?' · non c\'è in questa variante':''}</small></span><span class="dots">${dotsOf(pt).map(c=>`<i style="--c:${c}"></i>`).join('')}</span></button>`).join('')||'<p class="help">Il banco è vuoto: aggiungi un pezzo, apri un file o scegli un modello.</p>'}</div>`; }
+function wAdd(){ return `<div class="grp" style="margin:4px 0 8px">Aggiungi sul banco</div><div class="addG">${['pannello','scatola','manopola','griglia','telaio','altoparlante','componente'].map(k=>`<button type="button" data-add="${k}" title="${esc(KIND[k].n)}">${({pannello:'Frontale',scatola:'Scatola o mobile',manopola:'Manopola',griglia:'Griglia in lamiera',telaio:'Griglia in tessuto',altoparlante:'Altoparlante',componente:'Componente'})[k]}</button>`).join('')}<button type="button" data-add="file" title="Un .stl qualsiasi, oppure il .json di una manopola o di una griglia salvate con Officina Manopole e Officina Griglie">Da file (STL, JSON)</button></div>`; }
+function wPresent(c){ return `<div class="f chk"><input id="f_present" type="checkbox" ${hidden(p.cur,c.pt)?'':'checked'}><label for="f_present">Presente nella variante ${esc(curV().name)}</label></div>`; }
+function wZone(c){ const pt=c.pt; return `<div class="f"><label for="f_selp">Pezzo</label><select id="f_selp">${p.parts.map(q=>`<option value="${q.id}" ${q.id===pt.id?'selected':''}>${esc(q.name)}</option>`).join('')}</select></div>
+  <div class="zones" role="group" aria-label="Zona del pezzo">${zonesOf(pt).map(z=>`<button type="button" data-zone="${z}" aria-pressed="${z===c.zone}">${esc(zoneName(pt,z))}</button>`).join('')}</div>
+  <p class="help" style="margin-top:6px">Variante <b>${esc(curV().name)}</b>${p.variants.length>1?' · si cambia nella linguetta Varianti':''}. ${esc(famOf(c.s).segno?'Il colore del segno laser dipende dalla finitura che sta sotto.':'')}</p>`; }
+let ralQ='';
+function wColor(c){ const s=c.s, F=c.F, V=c.V, col=F.segno?markColor(s,baseOfMark(p.cur,c.pt,c.zone)):colorOf(s), nr=nearRAL(col);
+  const cur=`<div class="cur"><b style="--c:${col}"></b><span>${col.toUpperCase()}${F.cols==='anod'?'':` · vicino a RAL ${nr.code} ${esc(nr.name)} (ΔE ${nf(nr.dE,1)})`}</span></div>`;
+  if(F.segno&&s.var==='laser') return `<div class="f">${cur}<p class="help">Il laser non aggiunge colore: toglie o scurisce ciò che c'è sotto. Il colore del segno qui sopra è quello che si ottiene su questa finitura.</p></div>`;
+  if(F.cols==='anod') return `<div class="f"><label>Colore dell'anodizzazione</label><span></span><span class="sw" id="anodSw">${Object.entries(ANOD).map(([k,a])=>`<button type="button" data-anod="${k}" style="--c:${a[1]}" title="${esc(a[0])}${a[2]===0?' · tiene poco alla luce del sole':''}${a[3]?' · elettrocolore, molto stabile':''}" aria-label="${esc(a[0])}" aria-pressed="${s.anod===k}" class="${a[2]===0?'uv':''}"></button>`).join('')}</span>${cur.replace('</span></div>',` · ${esc((ANOD[s.anod]||ANOD.naturale)[0])}</span></div>`)}<p class="help">Solo i colori che una vasca di anodizzazione dà davvero: niente bianco, pochi pastello. Il pallino arancio segna i colori che sbiadiscono al sole.</p></div>`;
+  if(F.cols==='fixed') return `<div class="f">${cur}<p class="help">Il colore è quello del metallo e della lavorazione: si sceglie con il tipo di finitura.</p></div>`;
+  if(F.cols==='tint'||F.cols==='photo') return `<div class="f">${cur}</div>`;
+  const list=Object.entries(RAL).filter(([k,v])=>!ralQ||(k+' '+v[0]).toLowerCase().includes(ralQ.toLowerCase()));
+  return `<div class="f"><label for="f_col">Colore</label><input id="f_col" type="color" value="${col}"><div class="ralq"><input id="f_ralq" type="search" placeholder="Cerca un RAL: 9005, antracite, rosso…" value="${esc(ralQ)}"></div>
+    <div class="ralg" id="ralG">${list.map(([k,v])=>`<button type="button" data-ral="${k}" style="--c:${v[1]}" title="RAL ${k} ${esc(v[0])}${RAL_MET[k]?' (metallizzato)':''}" aria-label="RAL ${k}" aria-pressed="${s.code==='RAL '+k}"></button>`).join('')}</div>${cur}</div>`; }
+function wEnv(){ return `<div class="f"><label for="f_env">Ambiente</label><select id="f_env">${Object.entries(ENV).map(([k,v])=>`<option value="${k}" ${k===p.env?'selected':''}>${esc(v[0])}</option>`).join('')}</select><p class="help">${esc(ENV[p.env][1])}</p></div>`; }
+function wVars(){ return `<div style="display:flex;flex-direction:column;gap:8px">${p.variants.map((v,i)=>`<div class="f" style="grid-template-columns:auto 1fr auto auto"><button type="button" data-vsel="${i}" aria-pressed="${i===p.cur}" style="padding:5px 12px">${String.fromCharCode(65+i)}</button>
+    <input type="text" data-vname="${i}" value="${esc(v.name)}" style="width:100%" aria-label="Nome della variante">
+    <button type="button" data-vdup="${i}" title="Duplica questa variante" ${p.variants.length>=4?'disabled':''} style="padding:5px 10px">Duplica</button>
+    <button type="button" data-vdel="${i}" title="Elimina questa variante" ${p.variants.length<=1?'disabled':''} style="padding:5px 10px">×</button></div>`).join('')}</div>
+    <p class="help" style="margin-top:8px">Fino a quattro varianti. «Duplica» parte dalla variante scelta: si cambia solo ciò che si vuole confrontare.</p>`; }
+
+/* ---------- costruzione dei campi ---------- */
+const rows={}, btns={}, wids={};
+let curSec=0; try{ curSec=clamp(+localStorage.getItem('finiture_sez')||0,0,SCHEMA.length-1); }catch(e){}
+const tgt=(f,c)=>f.o==='p'?p:f.o==='pt'?c.pt:f.o==='g'?c.pt&&c.pt.g:c.s;
+const fid=f=>f.o+'.'+f.k;
+function onSet(f,c){ const s=c.s;
+  if(f.o==='s'&&f.k==='fam'){ const F=FAM[s.fam], v0=Object.keys(F.v)[0]; s.var=v0; if(F.cols==='anod'&&!s.anod) s.anod='naturale'; if(F.cols==='tint'&&!s.ess) s.ess='noce';
+    if(F.cols==='photo') s.foto=s.foto||Object.keys(p.samples)[0]; if(!['ral','free'].includes(F.cols)&&!F.segno){ s.code=''; } if((F.sub[s.sub]||0)===0){ const ok=Object.keys(F.sub).find(k=>F.sub[k]===2); if(ok) s.sub=ok; } fixRanges(s); }
+  if(f.o==='s'&&f.k==='var'){ fixRanges(s,true); }
+  if(f.o==='s'&&f.k==='sub'){ const F=famOf(s); if(!F.segno&&(F.sub[s.sub]||0)===0){ const best=Object.keys(FAM).find(k=>!FAM[k].segno&&k!=='foto'&&FAM[k].sub[s.sub]===2); if(best){ s.fam=best; s.var=Object.keys(FAM[best].v)[0]; if(FAM[best].cols==='anod') s.anod='naturale'; if(FAM[best].cols==='tint') s.ess='noce'; fixRanges(s,true); say(`Su ${SUB[s.sub][0].toLowerCase()} la finitura di prima non si può fare: passo a ${FAM[best].n.toLowerCase()}.`); } } }
+  if(f.o==='s'&&f.k==='code'){ const m=String(s.code||'').match(/(\d{4})/); if(m&&RAL[m[1]]) s.col=RAL[m[1]][1]; }
+  if(f.o==='g'&&c.pt.kind==='manopola'&&f.k==='D'&&c.pt.g.Dt>c.pt.g.D) c.pt.g.Dt=c.pt.g.D; }
+function fixRanges(s,resetGloss){ const V=varOf(s); if(V.gu&&(resetGloss||s.gu==null||s.gu<V.gu[0]||s.gu>V.gu[1])) s.gu=V.gu[2]; if(isMetal(s)&&(resetGloss||s.ra==null)) s.ra=V.ra; if(s.fam==='polvere'&&s.coat==null) s.coat=0.15; }
+function buildUI(){ const rootEl=$('controls'); rootEl.innerHTML='<nav id="rail" aria-label="Sezioni dei parametri"></nav><div id="secs"></div>';
+  SCHEMA.forEach((sec,i)=>{ const tab=document.createElement('div'); tab.className='tab';
+    tab.innerHTML=`<button type="button" id="tab_${sec.id}" aria-pressed="false" aria-label="${sec.t}" title="${sec.t}">${ICONS[sec.id]}</button><span>${sec.short}</span>`; tab.querySelector('button').onclick=()=>setSec(i); $('rail').append(tab); sec.tab=tab;
+    const d=document.createElement('section'); d.className='sec'; d.innerHTML=`<h2 class="secT">${sec.t}</h2><p class="secS"></p>`; const box=document.createElement('div'); box.className='fields'; d.append(box);
+    sec.f.forEach(f=>{ const row=document.createElement('div');
+      if(f.type==='g'){ row.className='grp'; row.textContent=f.l; f.sync=c=>{ row.hidden=f.show?!f.show(c):false; }; box.append(row); wids['g'+Math.random()]={row,f,sec}; return; }
+      if(f.type==='w'){ row.dataset.w=f.id; f.sync=c=>{ row.hidden=f.show?!f.show(c):false; if(!row.hidden){ const h=f.render(c); if(row._h!==h){ const a=document.activeElement, id=a&&a.id, ss=a&&a.selectionStart; row.innerHTML=h; row._h=h; if(id&&row.querySelector('#'+id)){ const el=$(id); el.focus(); try{ el.setSelectionRange(ss,ss); }catch(e){} } } } }; box.append(row); wids[f.id]={row,f,sec}; return; }
+      if(f.type==='b'){ const b=document.createElement('button'); b.type='button'; b.className='wide'; b.id=f.id; b.title=f.title; b.innerHTML=(ICONS[f.icon]||'')+f.l; box.append(b); btns[f.id]={row:b,f}; f.sync=c=>{ b.hidden=f.show?!f.show(c):false; }; return; }
+      const id='f_'+f.o+'_'+f.k+'_'+Object.keys(rows).length; row.className='f'+(f.type==='c'?' chk':'');
+      if(f.type==='r'){ row.innerHTML=`<label for="${id}">${f.l}</label><span class="num"><input id="${id}" type="number" min="${f.min}" max="${f.max}" step="${f.step}"><i>${f.u||''}</i></span><input id="${id}_r" type="range" min="${f.min}" max="${f.max}" step="${f.step}" aria-label="${f.l}">`;
+        const n=row.querySelector('input[type=number]'), r=row.querySelector('input[type=range]');
+        const set=v=>{ if(!isFinite(v)) return; const c=ctx(), o=tgt(f,c); if(!o) return; o[f.k]=v; n.value=v; r.value=v; onSet(f,c); update(); };
+        r.addEventListener('input',()=>set(+r.value)); n.addEventListener('change',()=>set(clamp(+n.value,+n.min,+n.max)));
+        f.sync=c=>{ const o=tgt(f,c); if(!o) return; let mn=f.min, mx=f.max; if(f.o==='s'&&f.k==='gu'&&c.V&&c.V.gu){ mn=c.V.gu[0]; mx=c.V.gu[1]; } n.min=r.min=mn; n.max=r.max=mx; const v=o[f.k]??(f.k==='ts'||f.k==='tn'?1:f.k==='dir'?0:mn); n.value=+(+v).toFixed(3); r.value=v; };
+      } else if(f.type==='s'){ row.innerHTML=`<label for="${id}">${f.l}</label><select id="${id}"></select>`; const s=row.querySelector('select'); let last='';
+        s.addEventListener('change',()=>{ const c=ctx(), o=tgt(f,c); o[f.k]=s.value; onSet(f,c); update(); });
+        f.sync=c=>{ const o=tgt(f,c); if(!o) return; const opts=typeof f.opts==='function'?f.opts(c):f.opts, h=JSON.stringify(opts); if(h!==last){ s.innerHTML=Object.entries(opts).map(([v,t])=>`<option value="${v}">${esc(t)}</option>`).join(''); last=h; }
+          if(f.ok) for(const op of s.options){ op.disabled=!f.ok(c,op.value); op.textContent=opts[op.value]+(op.disabled?' — non su questo materiale':''); }
+          s.value=o[f.k]??''; };
+      } else if(f.type==='t'){ row.innerHTML=`<label for="${id}">${f.l}</label><input id="${id}" type="text" maxlength="${f.k==='note'?300:60}" placeholder="${esc(f.ph||'')}">`; const t=row.querySelector('input');
+        t.addEventListener('input',()=>{ const c=ctx(), o=tgt(f,c); o[f.k]=t.value; onSet(f,c); update(true); }); f.sync=c=>{ const o=tgt(f,c); if(o&&document.activeElement!==t) t.value=o[f.k]??''; };
+      } else if(f.type==='k'){ row.innerHTML=`<label for="${id}">${f.l}</label><input id="${id}" type="color">`; const t=row.querySelector('input'); t.addEventListener('input',()=>{ const c=ctx(); tgt(f,c)[f.k]=t.value; update(); }); f.sync=c=>{ const o=tgt(f,c); if(o) t.value=o[f.k]; };
+      } else { row.innerHTML=`<input id="${id}" type="checkbox"><label for="${id}">${f.l}</label>`; const t=row.querySelector('input'); t.addEventListener('change',()=>{ const c=ctx(); tgt(f,c)[f.k]=t.checked; onSet(f,c); update(); }); f.sync=c=>{ const o=tgt(f,c); if(o) t.checked=!!o[f.k]; }; }
+      if(HELP[f.k]) row.querySelector('label').title=HELP[f.k];
+      rows[fid(f)+'#'+Object.keys(rows).length]={row,f,sec}; box.append(row); });
+    sec.el=d; $('secs').append(d); }); }
+function setSec(i){ if(i<0) return; curSec=i; syncUI(); $('secs').scrollTop=0; try{ localStorage.setItem('finiture_sez',i); }catch(e){} }
+function syncUI(){ const c=ctx();
+  for(const k in rows){ const {row,f}=rows[k]; const vis=f.show?!!f.show(c):true; row.hidden=!vis||!tgt(f,c); if(!row.hidden) f.sync(c); }
+  for(const k in wids) wids[k].f.sync(c); for(const k in btns) btns[k].f.sync(c);
+  SCHEMA.forEach((s,i)=>{ if(!s.el) return; const on=i===curSec; s.tab.dataset.on=on; s.tab.querySelector('button').setAttribute('aria-pressed',on); s.el.hidden=!on; s.el.querySelector('.secS').textContent=s.sum(c); });
+  $('bSide').setAttribute('aria-pressed',!!p.side); $('bSide').disabled=p.variants.length<2; }
+function goTo(k,pid,zone){ if(pid){ p.sel=pid; if(zone) p.zone=zone; }
+  const ent=Object.values(rows).find(r=>fid(r.f)===k&&(!r.f.show||r.f.show(ctx()))) || Object.values(rows).find(r=>fid(r.f)===k);
+  if(!ent){ if(String(k).startsWith('s.')){ setSec(SCHEMA.findIndex(s=>s.id==='finitura')); update(true); const w=wids.wColor&&wids.wColor.row; if(w&&!w.hidden){ w.scrollIntoView({block:'center',behavior:'smooth'}); w.classList.add('f','hl'); setTimeout(()=>w.classList.remove('hl'),1800); } } else update(true); return; }
+  setSec(SCHEMA.indexOf(ent.sec)); update(true); const r=ent.row; if(r.hidden) return;
+  document.querySelectorAll('.f.hl').forEach(x=>{ if(x!==r) x.classList.remove('hl'); }); r.scrollIntoView({block:'center',behavior:'smooth'}); r.classList.add('hl'); clearTimeout(r.t); r.t=setTimeout(()=>r.classList.remove('hl'),1800);
+  const inp=r.querySelector('input:not([type=range]),select'); if(inp) inp.focus({preventScroll:true}); }
+// clic dentro i widget (l'HTML viene rifatto: gli eventi si prendono dal contenitore)
+$('controls').addEventListener('click',e=>{ const t=e.target.closest('button'); if(!t) return; const c=ctx(), d=t.dataset;
+  if(d.pid){ p.sel=d.pid; p.zone=''; update(true); return; }
+  if(d.add){ if(d.add==='file'){ $('file').click(); return; } addPart(d.add); return; }
+  if(d.zone){ p.zone=d.zone; update(true); return; }
+  if(d.anod){ c.s.anod=d.anod; update(); return; }
+  if(d.ral){ c.s.col=RAL[d.ral][1]; c.s.code='RAL '+d.ral; update(); return; }
+  if(d.vsel!=null){ p.cur=+d.vsel; update(); return; }
+  if(d.vdup!=null){ if(p.variants.length>=4) return; const v=clone(p.variants[+d.vdup]); v.name=v.name.replace(/^([A-D])\b/,'')||'Copia'; const L=String.fromCharCode(65+p.variants.length); v.name=L+' · '+(p.variants[+d.vdup].name.replace(/^[A-D]\s*·\s*/,'')||'copia'); p.variants.push(v); p.cur=p.variants.length-1; update(); return; }
+  if(d.vdel!=null){ if(p.variants.length<=1) return; p.variants.splice(+d.vdel,1); p.cur=clamp(p.cur,0,p.variants.length-1); if(p.variants.length<2) p.side=false; update(); return; } });
+$('controls').addEventListener('change',e=>{ const t=e.target;
+  if(t.id==='f_selp'){ p.sel=t.value; p.zone=''; update(true); }
+  if(t.id==='f_env'){ p.env=t.value; update(); }
+  if(t.id==='f_present'){ const v=curV(), pt=selPart(); v.hide=(v.hide||[]).filter(x=>x!==pt.id); if(!t.checked) v.hide.push(pt.id); update(); } });
+$('controls').addEventListener('input',e=>{ const t=e.target, c=ctx();
+  if(t.id==='f_col'){ c.s.col=t.value; const n=nearRAL(t.value); c.s.code=n.dE<1?'RAL '+n.code:''; update(); }
+  if(t.id==='f_ralq'){ ralQ=t.value; syncUI(); }
+  if(t.dataset.vname!=null){ p.variants[+t.dataset.vname].name=t.value; update(true); } });
+function addPart(kind,o){ const pt=newPart(kind,o); const b=sceneBox(); if(!o&&p.parts.length){ pt.x=+(b.max.x+40+(KIND[kind].g.W||KIND[kind].g.D||30)/2).toFixed(0); }
+  p.parts.push(pt); p.sel=pt.id; p.zone=''; for(let vi=0;vi<p.variants.length;vi++) for(const z of Object.keys(KIND[kind].zones)) specFor(vi,pt,z); setSec(0); update(); fit(); return pt; }
+
+/* ---------- calcoli: superfici, abbinamenti, vincoli, costi ---------- */
+// le zone che si vedono in una variante, con la superficie vera in mm²
+function zonesIn(vi){ const out=[], M=new Map();
+  for(const pt of p.parts){ if(hidden(vi,pt)) continue; const e=PG.get(pt.id); if(!e) continue;
+    for(const m of [...e.meshes,e.leg].filter(Boolean)){ const z=aliasZone(pt,m.userData.zone), k=pt.id+'|'+z; let r=M.get(k);
+      if(!r){ const s=specFor(vi,pt,z); r={pt,zone:z,s,area:0,mark:!!famOf(s).segno}; M.set(k,r); out.push(r); } r.area+=m.userData.area||0; } }
+  for(const r of out){ r.F=famOf(r.s); r.V=varOf(r.s); r.col=r.mark?markColor(r.s,baseOfMark(vi,r.pt,r.zone)):colorOf(r.s); r.gu=r.mark?null:glossOf(r.s); } return out; }
+const tmpOf=r=>{ if(!isMetal(r.s)) return null; if(r.s.fam==='anod'){ const a=r.s.anod; return ['champagne','oro','bronzoC','bronzoM','bronzoS'].includes(a)?'caldo':['naturale','titanio','nero'].includes(a)?'freddo':'colorato'; } return r.V.tmp||r.F.tmp||null; };
+const lstar=h=>lab(h)[0];
+const labelOf=r=>`${r.pt.name} · ${zoneName(r.pt,r.zone).toLowerCase()}`;
+// su quale faccia sta una manopola (per contrasto e leggibilità)
+function hostOf(k){ const ke=PG.get(k.id); if(!ke) return null; ke.grp.updateMatrixWorld(true); const wp=new THREE.Vector3().setFromMatrixPosition(ke.grp.matrixWorld), ax=new THREE.Vector3(0,0,1).transformDirection(ke.grp.matrixWorld);
+  for(const pt of p.parts){ if(!(pt.kind==='pannello'||pt.kind==='scatola')) continue; const e=PG.get(pt.id); if(!e) continue; e.grp.updateMatrixWorld(true); const inv=e.grp.matrixWorld.clone().invert(), o=wp.clone().applyMatrix4(inv), a=ax.clone().transformDirection(inv), zf=pt.kind==='pannello'?pt.g.t:pt.g.D/2;
+    if(a.z>0.95&&Math.abs(o.x)<pt.g.W/2&&Math.abs(o.y)<pt.g.H/2&&Math.abs(o.z-zf)<12) return {pt,zone:pt.kind==='pannello'?'piano':aliasZone(pt,'fronte')}; } return null; }
+const BOUGHT=pt=>pt.kind==='altoparlante'||pt.kind==='componente';   // pezzi comprati: la finitura la decide il produttore
+const TEXTURED=s=>{ const V=varOf(s); return ['grain','orange','wrinkle','spray','leather','tolex','vdi','fdm','weave','knit','felt'].includes(V.tex)||s.fam==='tessuto'||s.fam==='poliurea'; };
+
+function checks(vi,Z,raw){ const out=[], add=(lvl,html,go)=>out.push({lvl,html,go}), seen=new Set();
+  const G=(r,f)=>({pid:r.pt.id,zone:r.zone,f:'s.'+f});
+  for(const r of Z){ if(BOUGHT(r.pt)) continue; const s=r.s, F=r.F, V=r.V, nm=`<b>${esc(labelOf(r))}</b>`;
+    if(r.mark){ const b=baseOfMark(vi,r.pt,r.zone), bF=b&&famOf(b), bV=b&&varOf(b), bc=b?colorOf(b):'#888', cr=contrast(r.col,bc);
+      if(s.var==='laser'){ if(b&&(b.fam==='tessuto'||b.fam==='poliurea'||b.fam==='pelle'&&b.var==='alcantara')) add('err',`${nm}: il laser su ${esc(bF.n.toLowerCase())} brucia o fonde il materiale, il segno non è pulito. Usa la serigrafia o un'etichetta.`,G(r,'var'));
+        else if(b&&b.fam==='anod') add(b.anod==='naturale'?'warn':'ok',b.anod==='naturale'?`${nm}: il laser sull'anodizzato naturale dà un segno chiaro su fondo chiaro: si legge poco (contrasto ${nf(cr,1)}:1). Meglio nero o un colore scuro, o una serigrafia nera.`:`${nm}: il laser toglie il colore dell'anodizzazione e lascia l'alluminio: segno chiaro, quasi bianco, nitido e indelebile (contrasto ${nf(cr,1)}:1). Si incide dopo l'anodizzazione.`,G(r,'var'));
+        else if(b&&(b.fam==='polvere'||b.fam==='lacca')) add('info',`${nm}: il laser toglie la vernice e scopre ${SUB[b.sub]&&SUB[b.sub][1]==='leg'?'il legno bruciato':'il metallo'}: segno ${relLum(r.col)>0.25?'chiaro':'scuro'} (contrasto ${nf(cr,1)}:1). Sulle polveri strutturate i bordi del segno sono meno netti.`,G(r,'var'));
+        else if(b&&b.fam==='inox') add('ok',`${nm}: sull'inox il laser fa un segno scuro per ricottura, senza togliere materiale.`,G(r,'var'));
+        else if(b&&(b.fam==='plastica'||b.fam==='gomma')) add('info',`${nm}: sulla plastica il segno dipende dall'additivo per laser nel materiale: chiedi una prova al fornitore.`,G(r,'var')); }
+      else if(s.var==='serigrafia'||s.var==='tampo'||s.var==='uv'){
+        if(b&&b.fam==='legno'&&(b.var==='olio'||b.var==='cera')) add('err',`${nm}: olio e cera respingono l'inchiostro: la ${esc(V.n.toLowerCase())} non tiene. Si stampa sulla vernice, oppure si incide al laser.`,G(r,'var'));
+        else if(b&&TEXTURED(b)) add(s.var==='uv'?'warn':'err',`${nm}: su ${esc(bV.n.toLowerCase())} l'inchiostro non copre i rilievi: righe sottili e caratteri sotto i 3 mm si spezzano. Lascia liscia la zona delle scritte, oppure usa il laser.`,G(r,'var'));
+        else if(b&&b.fam==='gomma'&&b.var==='silicone') add('warn',`${nm}: sul silicone servono inchiostri siliconici e un trattamento della superficie.`,G(r,'var'));
+        else if(s.var==='serigrafia'&&r.pt.kind==='manopola') add('warn',`${nm}: la serigrafia stampa solo su superfici piane: su una manopola si usa la tampografia o il laser.`,G(r,'var'));
+        else if(b&&b.fam==='anod') add('ok',`${nm}: sull'anodizzato la ${esc(V.n.toLowerCase())} attacca bene se si stampa prima del fissaggio, o con inchiostri bicomponenti.`,G(r,'var'));
+        if(cr<3) add('warn',`${nm}: il segno si legge poco sul fondo (contrasto ${nf(cr,1)}:1; per le scritte servono almeno 4,5:1).`,G(r,'col')); } continue; }
+    const c=F.sub[s.sub]||0, sub=SUB[s.sub]?SUB[s.sub][0].toLowerCase():'?', k=s.fam+'|'+s.sub;
+    if(c===0) add('err',`${nm}: ${esc(F.n.toLowerCase())} non si fa su ${esc(sub)}.`,G(r,'sub'));
+    else if(c===1&&!seen.has(k)){ seen.add(k); const why={
+        'anod|al_pressofuso':'il pressofuso ha il 9–11 % di silicio: l\'anodizzazione viene grigia scura, a chiazze, e segue le porosità. Per un colore uniforme: polvere (con degasaggio), oppure anodizzazione solo nera accettando la variazione.',
+        'polvere|al_pressofuso':'il pressofuso ha porosità piene d\'aria: in forno a 180–200 °C escono bolle e crateri. Chiedi il degasaggio (una cottura prima della verniciatura) e un primer.',
+        'polvere|zama':'la zama ha porosità: in forno escono bolle. Serve degasaggio, oppure una finitura galvanica.',
+        'polvere|mdf':'sull\'MDF serve una polvere a bassa temperatura (120–140 °C) e un MDF conduttivo o un primer: pochi verniciatori lo fanno. La laccatura liquida è più semplice.',
+        'polvere|ottone':'si fa, ma copre il metallo: ha senso solo per il colore.', 'polvere|rame':'si fa, ma copre il metallo: ha senso solo per il colore.',
+        'lacca|inox':'sull\'inox la vernice aggrappa male: serve sabbiatura o un primer apposito.', 'lacca|stampa3d':'prima va carteggiata e stuccata: le righe degli strati si vedono attraverso la vernice.', 'lacca|vetro':'serve una vernice per vetro a due componenti.',
+        'galv|al_tornito':'sull\'alluminio la cromatura chiede un pretrattamento (zincatura chimica): costa di più e gli scarti sono frequenti.', 'galv|al_estruso':'sull\'alluminio la cromatura chiede un pretrattamento (zincatura chimica): costa di più e gli scarti sono frequenti.', 'galv|al_pressofuso':'sul pressofuso di alluminio la galvanica è difficile: porosità e silicio danno difetti.',
+        'galv|plastica':'si cromano solo plastiche apposite (ABS o ABS/PC galvanizzabile).', 'legno|supporto':'il legno qui è un\'impiallacciatura incollata: va bene, ma gli spigoli vanno bordati.',
+        'poliurea|massello':'il legno massello si muove con l\'umidità: sulle giunte la poliurea può creparsi.', 'poliurea|al_lamiera':'sull\'alluminio serve un primer epossidico.', 'poliurea|stampa3d':'sulla stampa 3D serve un primer; i dettagli fini si impastano.',
+        'gomma|plastica':'è una vernice o un sovrastampaggio, non gomma piena.', 'gomma|stampa3d':'è una vernice gommosa: sulla stampa 3D servono carteggiatura e primer.', 'pelle|tessuto':'va incollata su un supporto rigido.', 'tessuto|supporto':'il tessuto incollato su pannello non è acusticamente trasparente: va bene solo fuori dagli altoparlanti.',
+        'membrana|al_lamiera':'membrana metallica: va trattata come una finitura del costruttore dell\'altoparlante.', 'membrana|tessuto':'' }[k];
+      if(why) add('warn',`${nm}: ${esc(F.n.toLowerCase())} su ${esc(sub)}: ${esc(why)}`,G(r,'sub')); }
+    if(s.fam==='anod'){ const a=ANOD[s.anod]||ANOD.naturale; if(a[2]===0) add('info',`${nm}: il ${esc(a[0].toLowerCase())} anodizzato è un colorante organico: al sole o vicino a una finestra sbiadisce in 1–3 anni. In casa dura molti anni.`,G(r,'col'));
+      if(s.sub==='al_lamiera') add('info',`${nm}: chiedi la lamiera in qualità anodica (5005): la 5754 anodizzata tende al giallo e al grigio.`,G(r,'sub'));
+      if(V.tex==='radial'&&r.pt.kind!=='manopola') add('warn',`${nm}: la finitura concentrica si fa al tornio sulle facce tonde; su questo pezzo il fornitore la può fare solo con una spazzolatrice orbitale, diversa al tatto.`,G(r,'var')); }
+    if(r.pt.kind==='griglia'&&['polvere','lacca','poliurea','galv'].includes(s.fam)){ const g=r.pt.g, cc=s.coat??(s.fam==='galv'?0.02:s.fam==='poliurea'?0.5:0.15), a0=openArea(g), a1=openArea(g,cc), d1=g.hd-2*cc, loss=a0>0?1-a1/a0:0;
+      const txt=`${nm}: la ${esc(F.n.toLowerCase())} stringe i fori di ${nf(cc,2)} mm per lato: il vuoto su pieno passa da ${nf(a0*100,1)} % a ${nf(a1*100,1)} % (foro da ${nf(g.hd,1)} a ${nf(Math.max(0,d1),1)} mm). Per tornare al valore di progetto: foro da ${nf(g.hd+2*cc,1)} mm in Officina Griglie.`;
+      add(d1<1?'err':loss>0.08?'warn':'info',txt+(d1<1?' Sotto 1 mm la vernice fa ponte e tappa i fori.':''),G(r,'coat')); }
+    if(r.pt.kind==='griglia'&&s.fam==='anod') add('ok',`${nm}: l'anodizzazione cresce di 10–25 µm: i fori non cambiano in modo apprezzabile.`,G(r,'fam'));
+    if((s.fam==='ottone'||s.fam==='rame')&&(V.pa||0)>0.5&&s.prot!=='lacca') add('warn',`${nm}: ${s.fam==='ottone'?'l\'ottone':'il rame'} ${s.prot==='cera'?'a cera':'nudo'} si scurisce in poche settimane e le dita lasciano macchie. Se deve restare com'è: vernice trasparente.`,G(r,'prot'));
+    if(V.deg) add('warn',`${nm}: il soft-touch dopo 5–8 anni può diventare appiccicoso (idrolisi), prima al caldo e dove si tocca. Sulle manopole valuta gomma vera o TPE.`,G(r,'var'));
+    if(s.fam==='lacca'&&s.var==='pianoforte') add('info',`${nm}: il lucido pianoforte mostra polvere, impronte e i micrograffi del panno; richiede più mani e la lucidatura: costa tre o quattro volte una laccatura normale.`,G(r,'var'));
+    if(s.var==='metallizzata') add('info',`${nm}: le vernici metallizzate cambiano tono con lo spessore e con l'angolo: chiedi il trasparente protettivo e approva un campione steso dal verniciatore.`,G(r,'var'));
+    if(s.fam==='plastica'&&V.cm) add('info',`${nm}: la finitura è nello stampo (${esc(V.n.toLowerCase())}): si paga una volta sullo stampo, circa ${nf(V.cm,0)} € in più, poi nulla a pezzo. Il colore si dà con il masterbatch (codice Pantone).`,G(r,'var'));
+    if(s.fam==='plastica'&&V.p3) add('info',`${nm}: le righe degli strati (o la grana della polvere) restano visibili. Per una superficie liscia: carteggiatura, stucco e verniciatura, circa 1,5 €/dm².`,G(r,'var'));
+    if(s.fam==='legno'&&s.sub==='mdf') add('info',`${nm}: su MDF il legno è un'impiallacciatura (0,6 mm): gli spigoli vanno bordati o arrotondati prima di impiallacciare.`,G(r,'sub')); }
+  // stesso colore dichiarato su materiali diversi
+  const byCode=new Map(); for(const r of Z){ if(r.mark||BOUGHT(r.pt)) continue; const c=r.F.cols==='anod'?(r.s.anod!=='naturale'?'anod '+r.s.anod:''):['ral','free'].includes(r.F.cols)?(r.s.code||'').trim():''; if(!c) continue; const a=byCode.get(c)||[]; a.push(r); byCode.set(c,a); }
+  for(const [c,a] of byCode){ const fams=[...new Set(a.map(r=>r.s.fam+'|'+(r.s.fam==='anod'?r.s.sub:'')))]; if(fams.length>1) add('info',`${esc(c.replace('anod ','anodizzato '))} su materiali o leghe diverse (${a.map(r=>esc(r.pt.name)).filter((v,i,x)=>x.indexOf(v)===i).join(', ')}) non viene identico: ${a[0].F.cols==='anod'?'leghe diverse prendono il colore in modo diverso; anodizza i pezzi nello stesso bagno':'chiedi i campioni dei due materiali e approvali insieme, con la stessa luce (metamerismo)'}.`,{pid:a[0].pt.id,zone:a[0].zone,f:'s.code'}); }
+  // avvisi uguali su pezzi diversi (otto manopole uguali): una riga sola con i nomi
+  if(!raw){ const grp=new Map(); for(const c of out){ const m=c.html.match(/^<b>([^<]*)<\/b>(: [\s\S]*)$/); const k=c.lvl+(m?m[2]:c.html); const g=grp.get(k); if(g){ if(m) g.names.push(m[1]); } else grp.set(k,{...c,names:m?[m[1]]:null,rest:m?m[2]:null}); }
+  out.length=0; for(const g of grp.values()){ if(g.names&&g.names.length>1){ const z=g.names.map(n=>n.split(' · ')), same=z.every(a=>a[1]===z[0][1]); g.html=`<b>${same?`${z.map(a=>a[0]).join(', ')} · ${z[0][1]}`:g.names.join(', ')}</b>${g.rest}`; } out.push(g); } }
+  if(!out.length) add('ok','Nessun problema di produzione trovato su questa variante.');
+  const ord={err:0,warn:1,info:2,ok:3}; return out.sort((a,b)=>ord[a.lvl]-ord[b.lvl]); }
+
+function tips(vi,Z){ const out=[], solid=Z.filter(r=>!r.mark), tot=solid.reduce((s,r)=>s+r.area,0)||1;
+  // 1. brillantezza
+  const all=solid.filter(r=>r.area/tot>0.004&&!BOUGHT(r.pt)&&r.s.fam!=='tessuto'&&!(r.s.fam==='pelle'&&r.s.var==='alcantara')).map(r=>({r,g:r.gu,m:isMetal(r.s)})).sort((a,b)=>a.g-b.g), pts=all.filter(q=>!q.m), groups=[]; for(const q of pts){ const l=groups[groups.length-1]; if(l&&q.g-l[l.length-1].g<=12) l.push(q); else groups.push([q]); }
+  const gaps=[]; for(let i=1;i<groups.length;i++){ const a=groups[i-1], b=groups[i]; gaps.push(b[0].g-a[a.length-1].g); }
+  let gv='ok', gt; if(groups.length<=1) gt='Le superfici hanno la stessa brillantezza: l\'oggetto si legge come un pezzo unico.';
+  else if(groups.length===2&&gaps[0]>=25) gt='Due livelli netti di brillantezza: il contrasto si legge come una scelta (per esempio corpo opaco e dettagli lucidi).';
+  else { gv='warn'; gt=`${groups.length} livelli di brillantezza vicini tra loro: chi guarda li legge come errori, non come scelte. Porta le superfici simili allo stesso valore.`; }
+  const bar=`<div class="gbar">${[10,35,70].map(x=>`<u style="left:${x}%"></u>`).join('')}${all.map(q=>`<i style="left:${clamp(q.g,1,99)}%;--c:${q.r.col}${q.m?';border-radius:3px;transform:rotate(45deg) scale(.8)':''}" title="${esc(labelOf(q.r))}: ${nf(q.g,0)} GU${q.m?' equivalenti (metallo)':''}"></i>`).join('')}</div><div class="scale"><span>opaco</span><span>satinato</span><span>semilucido</span><span>lucido</span></div>`;
+  const near=[]; for(let i=1;i<groups.length;i++) if(gaps[i-1]<25){ const a=groups[i-1][groups[i-1].length-1], b=groups[i][0]; near.push(`<li data-go="${b.r.pt.id}|${b.r.zone}|${isMetal(b.r.s)?'s.ra':'s.gu'}">${esc(labelOf(a.r))} (${nf(a.g,0)} GU) e ${esc(labelOf(b.r))} (${nf(b.g,0)} GU)</li>`); }
+  out.push({t:'Brillantezza',v:gv,h:bar+`<p style="margin:6px 0 0">${gt}</p>`+(near.length?`<ul>${near.join('')}</ul>`:'')+(all.some(q=>q.m)?'<p class="note" style="margin-top:6px">I rombi sono metalli: brillano in un altro modo e si confrontano a parte. Tessuti e pezzi acquistati non contano.</p>':'')});
+  // 2. temperatura dei metalli
+  const mets=solid.filter(r=>tmpOf(r)); const warm=mets.filter(r=>tmpOf(r)==='caldo'), cold=mets.filter(r=>tmpOf(r)==='freddo');
+  if(mets.length){ const aw=warm.reduce((s,r)=>s+r.area,0), ac=cold.reduce((s,r)=>s+r.area,0), small=Math.min(aw,ac)/(aw+ac||1);
+    let v='ok', t; if(warm.length&&cold.length){ v=small<0.12?'info':'warn'; t=small<0.12?`Metalli caldi e freddi insieme, ma ${aw<ac?'quelli caldi':'quelli freddi'} sono pochi: funziona come accento.`:'Metalli caldi (ottone, rame, oro, champagne) e freddi (alluminio, inox, cromo) in quantità simili: l\'occhio li legge come due oggetti diversi. Scegli una temperatura e usa l\'altra solo per un dettaglio.'; }
+    else t=warm.length?'Solo metalli caldi: l\'insieme è morbido, da salotto. Sta bene con legni scuri e neri caldi.':'Solo metalli freddi: l\'insieme è tecnico, da studio. Sta bene con neri, grigi e un colore d\'accento.';
+    out.push({t:'Temperatura dei metalli',v,h:`<p style="margin:0">${t}</p><ul>${mets.map(r=>`<li data-go="${r.pt.id}|${r.zone}|s.fam">${esc(labelOf(r))}: ${tmpOf(r)}</li>`).join('')}</ul>`}); }
+  // 3. contrasto e leggibilità
+  const rows=[]; let cv='ok';
+  for(const k of p.parts.filter(q=>q.kind==='manopola'&&!hidden(vi,q))){ const h=hostOf(k); if(!h||hidden(vi,h.pt)) continue; const kc=colorOf(specFor(vi,k,'corpo')), hc=colorOf(specFor(vi,h.pt,h.zone)), dL=Math.abs(lstar(kc)-lstar(hc));
+    const ind=zonesOf(k).includes('indice')?(()=>{ const s=specFor(vi,k,'indice'), b=baseOfMark(vi,k,'indice'); return contrast(markColor(s,b),colorOf(b)); })():null;
+    rows.push({k,h,dL,ind}); }
+  if(rows.length){ const low=rows.filter(r=>r.dL<12), li=rows.filter(r=>r.ind!=null&&r.ind<3);
+    const legs=Z.filter(r=>r.mark&&r.zone==='scritte').map(r=>({r,c:contrast(r.col,colorOf(baseOfMark(vi,r.pt,r.zone)))}));
+    const lbad=legs.filter(l=>l.c<4.5); if(li.length||lbad.some(l=>l.c<3)) cv='warn'; else if(low.length||lbad.length) cv='info';
+    out.push({t:'Contrasto e leggibilità',v:cv,h:`<ul style="margin-top:0">${[
+      low.length?`<li data-go="${low[0].k.id}|corpo|s.fam">${low.length===rows.length?'Manopole':'Alcune manopole'} tono su tono con il pannello (differenza di chiarezza ${nf(low[0].dL,0)} su 100): elegante, ma al buio o sul palco i comandi si trovano a fatica.</li>`:`<li>Le manopole si staccano dal pannello (differenza di chiarezza ${nf(Math.min(...rows.map(r=>r.dL)),0)} su 100 o più).</li>`,
+      li.length?`<li data-go="${li[0].k.id}|indice|s.var">L'indice di ${esc(li[0].k.name)} si legge poco (contrasto ${nf(li[0].ind,1)}:1): la posizione della manopola non si vede a colpo d'occhio.</li>`:rows.some(r=>r.ind!=null)?'<li>Gli indici si leggono bene sulle manopole.</li>':'',
+      ...legs.map(l=>`<li data-go="${l.r.pt.id}|scritte|s.var">Scritte su ${esc(l.r.pt.name)}: contrasto ${nf(l.c,1)}:1 ${l.c>=7?'(ottimo)':l.c>=4.5?'(buono)':l.c>=3?'(al limite: solo testi grandi)':'(troppo basso)'}.</li>`)].join('')}</ul>`}); }
+  // 4. gerarchia: colore dominante, secondario, accento
+  const byCol=new Map(); for(const r of solid){ let k=[...byCol.keys()].find(c=>dE00(c,r.col)<4); if(!k){ k=r.col; byCol.set(k,{a:0,rs:[]}); } const e=byCol.get(k); e.a+=r.area; e.rs.push(r); }
+  const C=[...byCol.entries()].map(([c,e])=>({c,a:e.a/tot,rs:e.rs})).sort((a,b)=>b.a-a.a);
+  if(C.length){ const dom=C[0], acc=C.slice(1).sort((a,b)=>(dE00(b.c,dom.c)+chroma(b.c)*0.3)-(dE00(a.c,dom.c)+chroma(a.c)*0.3))[0]; let v='ok', t;
+    if(C.length===1||C.every(c=>dE00(c.c,dom.c)<10)) { v='info'; t='Quasi monocromo: la gerarchia la fanno la forma, la brillantezza e la trama. Funziona se le superfici hanno brillantezze o trame diverse.'; }
+    else if(C.length>4){ v='warn'; t=`${C.length} colori diversi: tanti per un oggetto piccolo. Di solito ne bastano due più un accento.`; }
+    else if(acc&&acc.a>0.25&&chroma(acc.c)>25){ v='warn'; t=`Il colore più acceso copre il ${nf(acc.a*100,0)} % della superficie: non è più un accento, compete con il colore principale. Spostalo su un pezzo più piccolo (manopole, indice, una sola faccia).`; }
+    else t=`Colore principale ${nf(dom.a*100,0)} %${acc?`, accento ${nf(acc.a*100,0)} %`:''}: l'occhio va prima ${acc&&chroma(acc.c)>20?'sull\'accento, poi sul resto':'alla forma, poi ai dettagli'}.`;
+    out.push({t:'Gerarchia visiva',v,h:`<p style="margin:0">${t}</p>`}); }
+  // 5. invecchiamento
+  const rk=[]; for(const r of solid){ const L=lstar(r.col)/100, dark=1-L, glossy=r.gu/100, V=r.V, F=r.F, n=esc(labelOf(r));
+    const fp=(V.fp||0)*(0.4+0.6*dark), sc=(V.sc||0)*(0.4+0.6*Math.max(dark,glossy)), pa=(V.pa||0)*(r.s.prot==='lacca'?0.1:1), uv=(V.uv||0)+(F.cols==='anod'&&(ANOD[r.s.anod]||[])[2]===0?0.5:0);
+    if(fp>0.42) rk.push([fp,`${n}: impronte ben visibili (${r.gu<15?'il grasso delle dita lucida le superfici opache':'le dita opacizzano le superfici lucide'})`,r]);
+    if(sc>0.42) rk.push([sc,`${n}: i graffi si vedono (${dark>0.6?'su un colore scuro ':''}${glossy>0.6?'lucido':''}).`.replace(' ().','.'),r]);
+    if(pa>0.3) rk.push([pa+0.3,`${n}: si scurisce in poche settimane, con macchie dove si tocca.`,r]);
+    if(uv>0.45) rk.push([uv,`${n}: il colore cambia con la luce (${F.cols==='tint'?'il legno si scurisce o ingiallisce':'sbiadisce'}), soprattutto vicino a una finestra.`,r]);
+    if(V.deg) rk.push([0.9,`${n}: il soft-touch dopo qualche anno diventa appiccicoso.`,r]); }
+  rk.sort((a,b)=>b[0]-a[0]);
+  out.push({t:'Invecchiamento',v:rk.some(x=>x[0]>0.7)?'warn':rk.length?'info':'ok',h:rk.length?`<ul style="margin-top:0">${rk.slice(0,5).map(x=>`<li data-go="${x[2].pt.id}|${x[2].zone}|p.age">${x[1]}</li>`).join('')}</ul><p class="note" style="margin-top:6px">Per vederlo: Luce → «Mostra il pezzo dopo».</p>`:'<p style="margin:0">Finiture che invecchiano bene: graffi e impronte si notano poco.</p>'});
+  return out; }
+
+function costs(vi,Z){ const q=Math.max(1,p.qty), set=new Map(), rows=[]; let pz=0;
+  for(const r of Z){ if(BOUGHT(r.pt)) continue; const c=r.V.c||[0,0,0], dm2=r.area/1e4, sk=r.s.fam+'|'+r.s.var+'|'+(r.col||''), su=(c[2]||0)+(r.V.cm||0);
+    const per=r.mark?c[1]:dm2*c[0]+c[1]; if(su&&!set.has(sk)) set.set(sk,su);
+    rows.push({r,dm2,per}); pz+=per; }
+  const setup=[...set.values()].reduce((s,v)=>s+v,0); return {rows,pz,setup,unit:pz+setup/q,lot:pz*q+setup}; }
+
+const LVL={ok:'ok',warn:'attenzione',err:'non va',info:'nota'};
+function report(){ const vi=p.cur, Z=zonesIn(vi), solid=Z.filter(r=>!r.mark), tot=solid.reduce((s,r)=>s+r.area,0)||1, Co=costs(vi,Z);
+  const fins=new Set(Z.map(r=>r.s.fam+'|'+r.s.var+'|'+r.col)).size;
+  $('sVar').innerHTML=`<div class="stat big"><b>${nf(Co.unit,2)} €</b><small>finiture per pezzo, avviamenti compresi, su ${p.qty} pezzi</small></div>
+    <div class="stat"><b>${Z.length}</b><small>zone su ${p.parts.filter(q=>!hidden(vi,q)).length} pezzi</small></div><div class="stat"><b>${fins}</b><small>finiture diverse</small></div>
+    <div class="stat"><b>${nf(tot/1e4,1)} dm²</b><small>superficie trattata</small></div><div class="stat"><b>${nf(Co.lot,0)} €</b><small>sul lotto (avviamenti ${nf(Co.setup,0)} €)</small></div>`;
+  // palette per superficie
+  const byCol=new Map(); for(const r of solid){ let k=[...byCol.keys()].find(c=>dE00(c,r.col)<4); if(!k){ k=r.col; byCol.set(k,{a:0,n:[]}); } const e=byCol.get(k); e.a+=r.area; e.n.push(r); }
+  const C=[...byCol.entries()].sort((a,b)=>b[1].a-a[1].a);
+  $('palette').innerHTML=C.map(([c,e])=>`<i style="--c:${c};width:${e.a/tot*100}%" title="${esc(e.n.map(labelOf).join(', '))}" data-go="${e.n[0].pt.id}|${e.n[0].zone}|s.fam"></i>`).join('');
+  $('palLeg').innerHTML=C.map(([c,e])=>{ const r=e.n[0]; const nm=r.F.cols==='anod'?(ANOD[r.s.anod]||ANOD.naturale)[0]:r.s.code||r.F.n; return `<span><b style="--c:${c}"></b>${esc(nm)} ${nf(e.a/tot*100,0)} %</span>`; }).join('');
+  $('tips').innerHTML=tips(vi,Z).map(t=>`<li><b>${esc(t.t)} <em class="${t.v}">${LVL[t.v]}</em></b>${t.h}</li>`).join('');
+  $('checks').innerHTML=checks(vi,Z).map(c=>`<li class="${c.lvl}" ${c.go?`data-go="${c.go.pid}|${c.go.zone}|${c.go.f}" tabindex="0"`:''}><span class="tag">${LVL[c.lvl]}</span><span>${c.html}</span></li>`).join('');
+  $('costs').innerHTML=`<tr><th>Pezzo e finitura</th><th>dm²</th><th>€/pz</th></tr>`+Co.rows.map(x=>`<tr><td>${esc(labelOf(x.r))}<small>${esc(x.r.F.n)}, ${esc(x.r.V.n.toLowerCase())}</small></td><td>${x.r.mark?'—':nf(x.dm2,2)}</td><td>${nf(x.per,2)}</td></tr>`).join('')
+    +`<tr><td>Avviamenti (cambio colore, telai, cliché, stampi)<small>divisi su ${p.qty} pezzi</small></td><td></td><td>${nf(Co.setup/Math.max(1,p.qty),2)}</td></tr><tr class="tot"><td>Totale a pezzo</td><td></td><td>${nf(Co.unit,2)}</td></tr>`;
+  $('dims').textContent=`${curV().name} · ${ENV[p.env][0].toLowerCase()}${p.age?` · dopo ${nf(p.age,p.age%1?1:0)} anni`:''}`; }
+$('report').addEventListener('click',e=>{ const li=e.target.closest('[data-go]'); if(!li) return; const [pid,zone,f]=li.dataset.go.split('|'); if(pid&&partById(pid)) goTo(f,pid,zone); else goTo(f); });
+$('report').addEventListener('keydown',e=>{ if(e.key!=='Enter') return; const li=e.target.closest('[data-go]'); if(li) li.click(); });
+
+/* ---------- aggiornamento e cronologia ---------- */
+let saveT=0, bgKey='';
+function update(light){ if(!light) buildAll(); const bk=[p.env,p.envRot,p.expo,p.shadow].join('|'); if(bk!==bgKey){ bgKey=bk; applyEnv(); }
+  syncUI(); report(); requestRender(); clearTimeout(saveT); saveT=setTimeout(saveLocal,500); hSchedule(); }
+function saveLocal(){ try{ localStorage.setItem('finiture',JSON.stringify(p)); }catch(e){} try{ const m=packMeshes(); const s=JSON.stringify(m); if(s.length<3e6) localStorage.setItem('finiture_mesh',s); }catch(e){} }
+const hist=[]; let hPos=-1, hTimer=0, hSkip=false;
+function hSchedule(){ if(hSkip) return; clearTimeout(hTimer); hTimer=setTimeout(hCommit,400); hButtons(); }
+function hButtons(){ $('bUndo').disabled=hPos<=0&&!(hTimer&&hPos>=0); $('bRedo').disabled=hPos>=hist.length-1; }
+function hCommit(){ clearTimeout(hTimer); hTimer=0; const s=JSON.stringify(p); if(hPos<0||hist[hPos]!==s){ hist.length=hPos+1; hist.push(s); if(hist.length>100) hist.shift(); hPos=hist.length-1; } hButtons(); }
+function hGo(d){ if(hTimer) hCommit(); const n=hPos+d; if(n<0||n>=hist.length) return; hPos=n; p=JSON.parse(hist[n]); hSkip=true; try{ update(); } finally{ hSkip=false; } hButtons(); }
+$('bUndo').onclick=()=>hGo(-1); $('bRedo').onclick=()=>hGo(1);
+addEventListener('keydown',e=>{ if(!(e.ctrlKey||e.metaKey)||e.altKey) return; const k=e.key.toLowerCase(), t=e.target;
+  if((t&&t.matches&&t.matches('input[type=text],input[type=number],input[type=search],textarea'))||document.querySelector('dialog[open]')) return;
+  if(k==='z'&&!e.shiftKey){ e.preventDefault(); hGo(-1); } else if(k==='y'||(k==='z'&&e.shiftKey)){ e.preventDefault(); hGo(1); } });
+const say=t=>{ $('msg').textContent=t; clearTimeout(say.t); say.t=setTimeout(()=>{ $('msg').textContent=''; },9000); };
+
+/* ---------- file ---------- */
+// Dentro Claude (pagina pubblicata) i download diretti sono bloccati: si passa dal servizio di salvataggio, che accetta
+// solo alcuni tipi di file; gli altri viaggiano dentro un archivio zip.
+let saver; const SAVE_OK=/\.(json|svg|zip)$/i;
+const getSaver=()=>saver!==undefined?Promise.resolve(saver):(window.claude&&window.claude.use?window.claude.use('downloads').catch(()=>null):Promise.resolve(null)).then(n=>saver=n||null);
+getSaver();
+const CRC=(()=>{ const T=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; T[n]=c>>>0; } return b=>{ let c=0xFFFFFFFF; for(let i=0;i<b.length;i++) c=T[(c^b[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }; })();
+function zipStore(files){ const enc=new TextEncoder(), chunks=[], cen=[]; let off=0;
+  for(const [name,text] of files){ const nb=enc.encode(name), data=typeof text==='string'?enc.encode(text):text, crc=CRC(data);
+    const h=new DataView(new ArrayBuffer(30)); h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint32(14,crc,true); h.setUint32(18,data.length,true); h.setUint32(22,data.length,true); h.setUint16(26,nb.length,true); chunks.push(h.buffer,nb,data);
+    const c=new DataView(new ArrayBuffer(46)); c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint32(16,crc,true); c.setUint32(20,data.length,true); c.setUint32(24,data.length,true); c.setUint16(28,nb.length,true); c.setUint32(42,off,true);
+    cen.push(c.buffer,nb); off+=30+nb.length+data.length; }
+  const cs=cen.reduce((s,b)=>s+b.byteLength,0), e=new DataView(new ArrayBuffer(22)); e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true); e.setUint32(12,cs,true); e.setUint32(16,off,true);
+  return new Blob([...chunks,...cen,e.buffer],{type:'application/zip'}); }
+function download(blob,name){
+  if(saver){ (async()=>{ try{ let data=blob, fn=name; if(!SAVE_OK.test(name)){ data=zipStore([[name,new Uint8Array(await blob.arrayBuffer())]]); fn=name+'.zip'; }
+      await saver.save({filename:fn,data}); if(fn!==name) say(`Salvato come ${fn}: in questa pagina alcuni file escono in un archivio zip, da estrarre.`); }
+    catch(e){ say(e&&e.code==='declined'?'Salvataggio annullato.':'Salvataggio non riuscito in questa pagina'+(e&&e.message?': '+e.message:'.')); } })(); return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
+const fileBase=()=>(p.codice||p.nome||'finiture').replace(/[^\w\-àèéìòù ]+/gi,'').trim().replace(/\s+/g,'_')||'finiture';
+function packMeshes(){ const out={}; for(const pt of p.parts){ if(pt.kind!=='stl') continue; const M=MESHES[pt.g.mesh]; if(!M||out[pt.g.mesh]) continue; const P=M.pos, mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9];
+    for(let i=0;i<P.length;i+=3) for(let k=0;k<3;k++){ mn[k]=Math.min(mn[k],P[i+k]); mx[k]=Math.max(mx[k],P[i+k]); } const sz=mx.map((v,k)=>Math.max(1e-6,v-mn[k])), q=new Uint16Array(P.length);
+    for(let i=0;i<P.length;i++) q[i]=Math.round((P[i]-mn[i%3])/sz[i%3]*65535); out[pt.g.mesh]={mn,sz,q:b64e(new Uint8Array(q.buffer))}; } return out; }
+function unpackMeshes(o){ for(const id in o||{}){ const m=o[id], u=b64d(m.q), q=new Uint16Array(u.buffer,u.byteOffset,u.byteLength/2), P=new Float32Array(q.length); for(let i=0;i<q.length;i++) P[i]=m.mn[i%3]+q[i]/65535*m.sz[i%3]; MESHES[id]={pos:P}; } }
+$('bSave').onclick=()=>download(new Blob([JSON.stringify({...p,ver:VER,meshes:packMeshes()},null,1)],{type:'application/json'}),fileBase()+'.json');
+$('bLoad').onclick=()=>$('file').click();
+$('file').addEventListener('change',e=>{ openFiles([...e.target.files]); e.target.value=''; });
+stage.addEventListener('dragover',e=>{ e.preventDefault(); }); stage.addEventListener('drop',e=>{ e.preventDefault(); openFiles([...e.dataTransfer.files]); });
+function migrate(j){ const q={...clone(DEFP),...j}; delete q.meshes; delete q.ver; q.variants=(q.variants&&q.variants.length?q.variants:[{name:'A',asg:{},hide:[]}]).map(v=>({hide:[],asg:{},...v})); for(const pt of q.parts) pt.g={...KIND[pt.kind].g,...pt.g}; return q; }
+async function openFiles(files){ const added=[];
+  for(const f of files){ try{
+      if(/\.stl$/i.test(f.name)){ const pos=parseSTL(await f.arrayBuffer()); const id=uid(); MESHES[id]={pos}; const nm=f.name.replace(/\.stl$/i,''); const pt=placeNew(newPart('stl',{name:nm,g:{mesh:id,file:f.name}}));
+        if(pos.length/9>400000) say(`${nm}: ${nf(pos.length/9,0)} triangoli, la vista può rallentare.`); added.push(pt); continue; }
+      const j=JSON.parse(await f.text());
+      if(j.officina==='finiture'){ unpackMeshes(j.meshes); p=migrate(j); await loadSamples(); update(); fit(); say(`Aperto il progetto ${p.nome}.`); return; }
+      if('pat' in j&&'pitch' in j){ added.push(fromGriglie(j,f.name)); continue; }
+      if('grip' in j||('kind' in j&&'H' in j&&'D' in j)){ added.push(fromManopole(j,f.name)); continue; }
+      say(`${f.name}: non riconosco il file. Apro progetti di Officina Finiture, Manopole e Griglie (.json) e file .stl.`); }
+    catch(err){ console.error(err); say(`${f.name}: file non valido (${err.message||err}).`); } }
+  if(added.length){ p.sel=added[added.length-1].id; p.zone=''; setSec(0); update(); fit(); say(`Sul banco: ${added.map(a=>a.name).join(', ')}. ${added.length>1?'Si spostano':'Si sposta'} con «Posizione e rotazione».`); } }
+function placeNew(pt){ if(p.parts.length){ buildAll(); const b=sceneBox(); pt.x=Math.round(b.max.x+40+(pt.kind==='griglia'?gridBox(pt.g)[0]/2:pt.kind==='manopola'?pt.g.D/2:0)); } p.parts.push(pt); for(let vi=0;vi<p.variants.length;vi++) for(const z of Object.keys(KIND[pt.kind].zones)) specFor(vi,pt,z); return pt; }
+const nearAnod=h=>Object.entries(ANOD).sort((a,b)=>dE00(h,a[1][1])-dE00(h,b[1][1]))[0][0];
+function fromGriglie(j,fn){ const shape=['tonda','stadio'].includes(j.shape)?j.shape:'rett', pat=PAT[j.pat]?j.pat:'tondi60';
+  const pt=placeNew(newPart('griglia',{name:(fn||'Griglia').replace(/\.json$/i,''),g:{shape,W:j.W||200,H:j.H||300,Dg:j.Dg||200,r:j.cornerR??6,t:j.t||1,pat,hd:j.hd||3,pitch:j.pitch||5,slotL:j.slotL||15,margin:j.margin??10,dome:j.dome||0}}));
+  const m=j.material||'', sub=/Inox/.test(m)?'inox':/Allum/.test(m)?'al_lamiera':/Ottone/.test(m)?'ottone':/MDF/.test(m)?'mdf':/Multi/.test(m)?'multistrato':/Acril/.test(m)?'pmma':/PLA|PETG|ABS|ASA|Nylon|Resina/.test(m)?'stampa3d':'acciaio';
+  for(let vi=0;vi<p.variants.length;vi++){ const s=specFor(vi,pt,'lamiera'); s.sub=sub; const c=j.color||'#1b1d20';
+    if(sub==='stampa3d') Object.assign(s,{fam:'plastica',var:'fdm',col:c,gu:15});
+    else if(j.finish==='anodizzato'&&sub.startsWith('al')) Object.assign(s,{fam:'anod',var:'opaco',anod:nearAnod(c),ra:0.5});
+    else if(j.finish==='grezzo') Object.assign(s,sub==='inox'?{fam:'inox',var:'spazzolato',ra:0.5}:sub==='ottone'?{fam:'ottone',var:'satinato',ra:0.5,prot:'lacca'}:sub==='al_lamiera'?{fam:'anod',var:'opaco',anod:'naturale',ra:0.5}:{fam:'polvere',var:'liscia',col:c,gu:30,coat:0.15});
+    else if(['mdf','multistrato','pmma'].includes(sub)) Object.assign(s,sub==='pmma'?{fam:'acrilico',var:'lucido',col:c,gu:92}:{fam:'lacca',var:'opaca',col:c,gu:8});
+    else { const n=nearRAL(c); Object.assign(s,{fam:'polvere',var:'liscia',col:c,code:n.dE<2?'RAL '+n.code:'',gu:30,coat:0.15}); } }
+  if(!PAT[j.pat]) say(`La foratura «${j.pat}» qui è mostrata come fori tondi sfalsati con lo stesso foro e passo: il vuoto su pieno dei vincoli è indicativo.`);
+  return pt; }
+function fromManopole(j,fn){ if(j.kind==='barra') say('Impugnature a T, galletti e alette non hanno un modello qui: esporta l\'STL da Officina Manopole e aprilo. Intanto metto una manopola tonda con le stesse misure.');
+  const pt=placeNew(newPart('manopola',{name:(fn||'Manopola').replace(/\.json$/i,''),g:{D:j.D||30,Dt:Math.min(j.D||30,j.Dt||j.D||30),H:j.H||16,er:j.edgeR??1.2,grip:['zigrinata','scanalata','lobi','liscia'].includes(j.grip)?j.grip:'zigrinata',
+    N:j.gripN||30,gd:j.gripDepth||0.5,skirt:!!j.skirtOn,sD:j.skirtD||(j.D||30)+6,sH:j.skirtH||2,top:j.topType==='concavo'?'concavo':j.topType==='bombato'?'bombato':'piatto',conc:j.topAmt||0.6,ptr:{lato:'linea',linea:'linea',punto:'punto',nessuno:'nessuno'}[j.ptr]||'linea',cap:false,lab:''}}));
+  pt.rx=0; for(let vi=0;vi<p.variants.length;vi++){ Object.assign(specFor(vi,pt,'corpo'),{fam:'plastica',var:'fdm',sub:'stampa3d',col:j.color||'#2b2f34',gu:15}); Object.assign(specFor(vi,pt,'indice'),{fam:'segno',var:'tampo',col:j.ptrColor||'#eeeeea'}); }
+  return pt; }
+
+/* ---------- immagini ---------- */
+function shot(vi,w,h,camOverride){ const pr=renderer.getPixelRatio(), sv=[camera.position.clone(),controls.target.clone()], ry=root.rotation.y;
+  if(camOverride) camOverride(); renderer.setPixelRatio(1); renderer.setSize(w,h,false); renderer.setScissorTest(false); setHover(null); applyVariant(vi);
+  camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setViewport(0,0,w,h); renderer.render(scene,camera); const url=renderer.domElement.toDataURL('image/jpeg',0.9);
+  renderer.setPixelRatio(pr); renderer.setSize(stage.clientWidth,stage.clientHeight,false); if(camOverride){ camera.position.copy(sv[0]); controls.target.copy(sv[1]); controls.update(); } root.rotation.y=ry; requestRender(); return url; }
+$('bPng').onclick=()=>{ const w=stage.clientWidth*2, h=stage.clientHeight*2, url=shot(p.cur,w,h).replace('image/jpeg','image/png');
+  const pr=renderer.getPixelRatio(); renderer.setPixelRatio(1); renderer.setSize(w,h,false); applyVariant(p.cur); camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setViewport(0,0,w,h); renderer.render(scene,camera);
+  renderer.domElement.toBlob(b=>{ download(b,fileBase()+'_'+curV().name.replace(/[^\w]+/g,'_')+'.png'); renderer.setPixelRatio(pr); renderer.setSize(stage.clientWidth,stage.clientHeight,false); requestRender(); },'image/png'); };
+
+/* ---------- modelli pronti ---------- */
+function tpl(nome,parts,variants){ const q=clone(DEFP); q.nome=nome; q.parts=parts; q.variants=variants.map(([name,asg,hide])=>({name,asg:{},hide:hide||[],_a:asg})); q.sel=parts[0].id; return q; }
+function fillTpl(q){ const keep=p; p=q; for(let vi=0;vi<q.variants.length;vi++){ const v=q.variants[vi], a=v._a; delete v._a; for(const [pid,zs] of Object.entries(a)) for(const [z,s] of Object.entries(zs)){ const pt=q.parts[+pid]; v.asg[pt.id]=v.asg[pt.id]||{}; v.asg[pt.id][z]={dir:0,ts:1,tn:1,...s}; }
+    v.hide=v.hide.map(i=>q.parts[i].id); for(const pt of q.parts) for(const z of Object.keys(KIND[pt.kind].zones)) specFor(vi,pt,z); } p=keep; return q; }
+const P=(kind,o)=>newPart(kind,o);
+const Sp={ anod:(var_,anod,sub='al_lamiera',x)=>({fam:'anod',var:var_,anod,sub,ra:FAM.anod.v[var_].ra,...x}), pol:(var_,ral,gu,sub='acciaio',x)=>({fam:'polvere',var:var_,col:RAL[ral][1],code:'RAL '+ral,gu,sub,coat:0.15,...x}),
+  lac:(var_,ral,sub='mdf',x)=>({fam:'lacca',var:var_,col:RAL[ral][1],code:'RAL '+ral,gu:FAM.lacca.v[var_].gu[2],sub,...x}), wood:(ess,var_,sub='massello',x)=>({fam:'legno',var:var_,ess,sub,gu:FAM.legno.v[var_].gu[2],tint:'#ffffff',...x}),
+  mark:(var_,ral)=>({fam:'segno',var:var_,col:ral?RAL[ral][1]:'#f1ece1',code:ral?'RAL '+ral:''}), met:(fam,var_,sub,x)=>({fam,var:var_,sub,ra:FAM[fam].v[var_].ra,...x}),
+  pl:(var_,col,sub='plastica',x)=>({fam:'plastica',var:var_,col,sub,gu:FAM.plastica.v[var_].gu[2],...x}) };
+const knobs=(list,o)=>list.map(([x,y,z,lab])=>P('manopola',{name:'Manopola '+lab.toLowerCase(),x,y,z,rx:o.rx||0,g:{...o.g,lab}}));
+const TPL={
+ 'Pedale per chitarra (scatola 125B)':()=>{ const box=P('scatola',{name:'Scatola 125B',g:{W:66,H:122,D:39,r:5,b:2.5,leg:true},y:19.5,rx:-90});
+   const K=knobs([[-16,39,-40,'Gain'],[16,39,-40,'Level'],[0,39,-17,'Tone']],{rx:-90,g:{D:15,Dt:14,H:15,er:1,grip:'zigrinata',N:28,gd:0.35,ptr:'linea'}});
+   const fs=P('componente',{name:'Footswitch',g:{tipo:'footswitch'},y:39,z:32,rx:-90}), led=P('componente',{name:'LED',g:{tipo:'led',on:true,lc:'#ff3b2f'},y:39,z:5,rx:-90});
+   const parts=[box,...K,fs,led];
+   return fillTpl(tpl('Pedale per chitarra',parts,[
+     ['A · Nero satinato e alluminio',{0:{corpo:Sp.pol('liscia','9005',25,'al_pressofuso'),scritte:Sp.mark('serigrafia','9010')},...Object.fromEntries(K.map((_,j)=>[j+1,{corpo:Sp.anod('tornito','nero','al_tornito'),indice:Sp.mark('laser')}]))}],
+     ['B · Rosso traffico bucciato',{0:{corpo:Sp.pol('bucciata','3020',70,'al_pressofuso'),scritte:Sp.mark('serigrafia','9010')},...Object.fromEntries(K.map((_,j)=>[j+1,{corpo:Sp.pl('satinata','#151517'),indice:Sp.mark('tampo','9010')}]))}],
+     ['C · Blu anodizzato (da verificare)',{0:{corpo:Sp.anod('opaco','blu','al_pressofuso'),scritte:Sp.mark('laser')},...Object.fromEntries(K.map((_,j)=>[j+1,{corpo:Sp.anod('tornito','naturale','al_tornito'),indice:Sp.mark('tampo','9005')}]))}] ])); },
+ 'Synth da tavolo, frontale in alluminio e fianchi in legno':()=>{ const box=P('scatola',{name:'Corpo e frontale',g:{W:300,H:160,D:40,r:3,b:1.5,front:true,leg:true},y:20,rx:-90});
+   const L=P('pannello',{name:'Fianco sinistro',g:{W:180,H:70,t:12,r:8,b:2,leg:false},x:-162,y:35,ry:90}), Rr=P('pannello',{name:'Fianco destro',g:{W:180,H:70,t:12,r:8,b:2,leg:false},x:150,y:35,ry:90});
+   const K=knobs([[-105,40,-35,'Cutoff'],[-35,40,-35,'Reso'],[35,40,-35,'Env'],[105,40,-35,'Decay'],[-105,40,25,'Attack'],[-35,40,25,'Release'],[35,40,25,'Lfo'],[105,40,25,'Volume']],{rx:-90,g:{D:22,Dt:20,H:17,er:1.5,grip:'zigrinata',N:36,gd:0.4,ptr:'linea'}});
+   const parts=[box,L,Rr,...K], K_=s=>Object.fromEntries(K.map((_,j)=>[j+3,s]));
+   return fillTpl(tpl('Synth da tavolo',parts,[
+     ['A · Nero spazzolato, noce, alluminio',{0:{corpo:Sp.pol('goffrata','9005',8),fronte:Sp.anod('spazzolato','nero'),scritte:Sp.mark('serigrafia','9010')},1:{piano:Sp.wood('noce','olio')},2:{piano:Sp.wood('noce','olio')},...K_({corpo:Sp.anod('tornito','naturale','al_tornito'),indice:Sp.mark('tampo','9005')})}],
+     ['B · Argento opaco, rovere, manopole nere',{0:{corpo:Sp.pol('goffrata','7016',8),fronte:Sp.anod('opaco','naturale'),scritte:Sp.mark('serigrafia','9005')},1:{piano:Sp.wood('rovere','olio')},2:{piano:Sp.wood('rovere','olio')},...K_({corpo:Sp.lac('soft','9005','plastica'),indice:Sp.mark('tampo','2011')})}],
+     ['C · Argento e ottone nudo',{0:{corpo:Sp.pol('goffrata','9005',8),fronte:Sp.anod('spazzolato','naturale'),scritte:Sp.mark('serigrafia','9005')},1:{piano:Sp.wood('wenge','opaca')},2:{piano:Sp.wood('wenge','opaca')},...K_({corpo:Sp.met('ottone','satinato','ottone',{prot:'nudo'}),indice:Sp.mark('riempita','9005')})}] ])); },
+ 'Diffusore da scaffale a due vie':()=>{ const box=P('scatola',{name:'Mobile',g:{W:200,H:330,D:260,r:3,b:3,front:true},y:165});
+   const wf=P('altoparlante',{name:'Woofer',g:{D:165},y:125,z:130}), tw=P('altoparlante',{name:'Tweeter',g:{D:62},y:262,z:130});
+   const tel=P('telaio',{name:'Griglia in tessuto',g:{W:192,H:322,r:3,t:10},y:165,z:131}), gr=P('griglia',{name:'Griglia in lamiera',g:{shape:'rett',W:192,H:322,r:3,t:1,pat:'tondi60',hd:2.5,pitch:4,margin:8,dome:0},y:165,z:142});
+   return fillTpl(tpl('Diffusore da scaffale',[box,wf,tw,tel,gr],[
+     ['A · Noce e nero, senza griglia',{0:{corpo:Sp.wood('noce','olio','mdf'),fronte:Sp.lac('opaca','9005')}},[3,4]],
+     ['B · Bianco satinato e tessuto',{0:{corpo:Sp.lac('satinata','9010'),fronte:Sp.lac('satinata','9010')},3:{tessuto:{fam:'tessuto',var:'maglia',sub:'tessuto',col:'#4a4c50'}}},[4]],
+     ['C · Rovere e lamiera nera',{0:{corpo:Sp.wood('rovere','opaca','mdf'),fronte:Sp.lac('opaca','9005')},4:{lamiera:Sp.pol('bucciata','9005',60)}},[3]] ])); },
+ 'Amplificatore integrato hi-fi':()=>{ const box=P('scatola',{name:'Chassis',g:{W:430,H:90,D:340,r:2,b:1},y:51});
+   const fr=P('pannello',{name:'Frontale',g:{W:440,H:100,t:8,r:2,b:1,leg:true},y:51,z:170});
+   const K=[P('manopola',{name:'Manopola volume',x:150,y:51,z:178,g:{D:44,Dt:42,H:22,er:2,grip:'liscia',ptr:'punto',lab:'Volume'}}),P('manopola',{name:'Manopola ingressi',x:-150,y:51,z:178,g:{D:32,Dt:30,H:18,er:1.5,grip:'liscia',ptr:'punto',lab:'Input'}}),
+     P('manopola',{name:'Manopola bassi',x:-60,y:51,z:178,g:{D:20,Dt:19,H:15,er:1,grip:'zigrinata',N:40,gd:0.3,ptr:'punto',lab:'Bass'}}),P('manopola',{name:'Manopola acuti',x:-10,y:51,z:178,g:{D:20,Dt:19,H:15,er:1,grip:'zigrinata',N:40,gd:0.3,ptr:'punto',lab:'Treble'}})];
+   const led=P('componente',{name:'LED',g:{tipo:'led',on:true,lc:'#ffb14a'},x:75,y:51,z:178});
+   const ft=[[-180,-130],[180,-130],[-180,130],[180,130]].map(([x,z],i)=>P('componente',{name:'Piedino '+(i+1),g:{tipo:'piedino'},x,y:6,z,rx:90}));
+   const parts=[box,fr,...K,led,...ft], KK=s=>Object.fromEntries(K.map((_,j)=>[j+2,s])), FT=Object.fromEntries(ft.map((_,j)=>[j+7,{metallo:{fam:'gomma',var:'epdm',sub:'gomma',col:'#141414',gu:3}}]));
+   return fillTpl(tpl('Amplificatore integrato',parts,[
+     ['A · Alluminio naturale spazzolato',{0:{corpo:Sp.pol('goffrata','9005',8)},1:{piano:Sp.anod('spazzolato','naturale'),scritte:Sp.mark('serigrafia','9005')},...KK({corpo:Sp.anod('tornito','naturale','al_tornito'),indice:Sp.mark('riempita','9005')}),...FT}],
+     ['B · Nero spazzolato e argento',{0:{corpo:Sp.pol('goffrata','9005',8)},1:{piano:Sp.anod('spazzolato','nero'),scritte:Sp.mark('laser')},...KK({corpo:Sp.anod('tornito','naturale','al_tornito'),indice:Sp.mark('riempita','9005')}),...FT}],
+     ['C · Champagne e ottone',{0:{corpo:Sp.pol('goffrata','8019',8)},1:{piano:Sp.anod('spazzolato','champagne'),scritte:Sp.mark('serigrafia','8022')},...KK({corpo:Sp.met('ottone','satinato','ottone',{prot:'lacca'}),indice:Sp.mark('riempita','8022')}),...FT}] ])); },
+ 'Cassa PA in poliurea con griglia in lamiera':()=>{ const box=P('scatola',{name:'Mobile',g:{W:380,H:600,D:380,r:4,b:4},y:300});
+   const w=P('altoparlante',{name:'Woofer 15"',g:{D:380},y:215,z:186}), m=P('altoparlante',{name:'Medio',g:{D:120},y:470,z:186});
+   const gr=P('griglia',{name:'Griglia',g:{shape:'rett',W:372,H:592,r:4,t:1.5,pat:'tondi60',hd:4,pitch:6,margin:12,dome:0},y:300,z:200});
+   return fillTpl(tpl('Cassa PA',[box,w,m,gr],[
+     ['A · Poliurea nera, griglia bucciata',{0:{corpo:{fam:'poliurea',var:'grossa',sub:'multistrato',col:RAL['9005'][1],code:'RAL 9005',gu:4}},3:{lamiera:Sp.pol('bucciata','9005',60)}}],
+     ['B · Poliurea antracite',{0:{corpo:{fam:'poliurea',var:'fine',sub:'multistrato',col:RAL['7016'][1],code:'RAL 7016',gu:6}},3:{lamiera:Sp.pol('liscia','7016',30)}}] ])); },
+ 'Amplificatore per chitarra (vinile e tessuto)':()=>{ const box=P('scatola',{name:'Mobile',g:{W:520,H:440,D:250,r:10,b:6,front:true},y:220});
+   const pan=P('pannello',{name:'Pannello comandi',g:{W:500,H:64,t:2,r:3,b:0.5,leg:true},y:392,z:125});
+   const K=knobs([[-180,392,127,'Volume'],[-90,392,127,'Treble'],[0,392,127,'Middle'],[90,392,127,'Bass'],[180,392,127,'Presence']],{g:{D:22,Dt:20,H:18,er:1,grip:'zigrinata',N:24,gd:0.5,skirt:true,sD:30,sH:2.5,ptr:'lato',cap:true}});
+   const parts=[box,pan,...K], KK=s=>Object.fromEntries(K.map((_,j)=>[j+2,s]));
+   return fillTpl(tpl('Amplificatore per chitarra',parts,[
+     ['A · Vinile nero e oro',{0:{corpo:{fam:'pelle',var:'tolex',sub:'supporto',col:'#141414',gu:15},fronte:{fam:'tessuto',var:'trama',sub:'tessuto',col:'#7a6a50'}},1:{piano:Sp.anod('spazzolato','oro'),scritte:Sp.mark('serigrafia','9005')},...KK({corpo:Sp.pl('lucida','#0f0f10'),faccia:Sp.met('ottone','satinato','ottone',{prot:'lacca'}),indice:Sp.mark('tampo','9010')})}],
+     ['B · Vinile crema e argento',{0:{corpo:{fam:'pelle',var:'tolex',sub:'supporto',col:'#e6d8b8',gu:15},fronte:{fam:'tessuto',var:'trama',sub:'tessuto',col:'#8c7a58'}},1:{piano:Sp.anod('spazzolato','naturale'),scritte:Sp.mark('serigrafia','9005')},...KK({corpo:Sp.pl('lucida','#efe6cf'),faccia:Sp.anod('tornito','naturale','al_tornito'),indice:Sp.mark('tampo','9005')})}] ])); },
+ 'Radio da tavolo (legno e ottone)':()=>{ const box=P('scatola',{name:'Mobile',g:{W:280,H:170,D:130,r:12,b:4,front:false,leg:true},y:85});
+   const gr=P('griglia',{name:'Griglia tonda',g:{shape:'tonda',Dg:120,t:0.8,pat:'tondi60',hd:2,pitch:3.2,margin:4,dome:2},x:-55,y:85,z:66});
+   const K=knobs([[75,112,65,'Volume'],[75,52,65,'Sintonia']],{g:{D:30,Dt:28,H:16,er:2,grip:'scanalata',N:18,gd:0.8,ptr:'punto'}});
+   const parts=[box,gr,...K], KK=s=>Object.fromEntries(K.map((_,j)=>[j+2,s]));
+   return fillTpl(tpl('Radio da tavolo',parts,[
+     ['A · Ciliegio e ottone',{0:{corpo:Sp.wood('ciliegio','opaca'),scritte:Sp.mark('laser')},1:{lamiera:Sp.met('ottone','satinato','ottone',{prot:'lacca'})},...KK({corpo:Sp.met('ottone','satinato','ottone',{prot:'lacca'}),indice:Sp.mark('riempita','9005')})}],
+     ['B · Rovere fumé e alluminio',{0:{corpo:Sp.wood('rovereF','olio'),scritte:Sp.mark('laser')},1:{lamiera:Sp.anod('opaco','naturale')},...KK({corpo:Sp.anod('tornito','naturale','al_tornito'),indice:Sp.mark('riempita','9005')})}],
+     ['C · Laccato crema e rame',{0:{corpo:Sp.lac('satinata','9001','massello'),scritte:Sp.mark('serigrafia','8017')},1:{lamiera:Sp.met('rame','satinato','rame',{prot:'lacca'})},...KK({corpo:Sp.met('rame','satinato','rame',{prot:'lacca'}),indice:Sp.mark('riempita','8017')})}] ])); },
+ 'Banco vuoto':()=>{ const q=clone(DEFP); q.variants=[{name:'A',asg:{},hide:[]}]; return q; } };
+const TPLD={'Pedale per chitarra (scatola 125B)':'Scatola pressofusa, tre manopole, footswitch e LED. La variante C mostra cosa succede ad anodizzare un pressofuso.',
+  'Synth da tavolo, frontale in alluminio e fianchi in legno':'Otto manopole con scale serigrafate; prova la temperatura dei metalli nella variante C.','Diffusore da scaffale a due vie':'Mobile impiallacciato, frontale laccato; con e senza griglia, in tessuto o in lamiera.',
+  'Amplificatore integrato hi-fi':'Frontale spesso in alluminio, manopole tornite, piedini. Tre abbinamenti di metallo.','Cassa PA in poliurea con griglia in lamiera':'La polvere sulla griglia stringe i fori: guarda i vincoli.',
+  'Amplificatore per chitarra (vinile e tessuto)':'Vinile goffrato, tessuto a trama larga, manopole con gonna e calotta.','Radio da tavolo (legno e ottone)':'Legno, griglia tonda bombata, manopole scanalate.','Banco vuoto':'Si parte da zero: aggiungi pezzi o apri file STL e JSON.'};
+const libGet=()=>{ try{ return JSON.parse(localStorage.getItem('finiture_lib')||'{}')||{}; }catch(e){ return {}; } };
+const libSet=o=>{ try{ localStorage.setItem('finiture_lib',JSON.stringify(o)); return true; }catch(e){ return false; } };
+const THUMB={}; let galRun=0;
+let galKeep=null;   // il progetto vero, mentre la galleria disegna le anteprime
+function applyProject(q){ const b=galKeep||p, keep={env:b.env,envRot:b.envRot,expo:b.expo,shadow:b.shadow,qty:b.qty,age:b.age}; galKeep=null; p={...migrate(q),...keep}; }
+async function openGallery(){ const dlg=$('gallery'), box=$('galGrid'), run=++galRun, lib=libGet(); box.innerHTML='';
+  const entries=[...Object.keys(lib).map(name=>({name,user:true,get:()=>clone(lib[name])})),...Object.keys(TPL).map(name=>({name,get:TPL[name]}))];
+  for(const en of entries){ const card=document.createElement('div'); card.className='card'; const b=document.createElement('button'); b.type='button';
+    b.innerHTML=`<img alt="" width="240" height="180"><span></span><small></small>`; b.querySelector('span').textContent=en.name+(en.user?' (tuo)':''); b.querySelector('small').textContent=TPLD[en.name]||'';
+    b.onclick=()=>{ galRun++; applyProject(en.get()); dlg.close(); update(); fit(); }; card.append(b); en.img=b.querySelector('img'); if(THUMB[en.name]&&!en.user) en.img.src=THUMB[en.name];
+    if(en.user){ const d=document.createElement('button'); d.type='button'; d.className='del'; d.textContent='Elimina'; d.onclick=()=>{ const l=libGet(); delete l[en.name]; libSet(l); openGallery(); }; card.append(d); }
+    box.append(card); }
+  if(!dlg.open) dlg.showModal();
+  if(!galKeep) galKeep=clone(p); const cam=[camera.position.clone(),controls.target.clone()], v0=view;
+  try{ for(const en of entries){ if(THUMB[en.name]&&!en.user) continue; await new Promise(r=>setTimeout(r,0)); if(run!==galRun||!dlg.open) break;
+      p={...migrate(en.get()),env:'studio',envRot:0,expo:1,age:0,side:false,shadow:true}; buildAll(); if(!p.parts.length) continue; view='libera'; applyEnv();
+      fit(); const url=shot(0,480,360); en.img.src=url; if(!en.user) THUMB[en.name]=url; } }
+  finally{ if(galKeep&&(run===galRun||!dlg.open)){ p=galKeep; galKeep=null; view=v0; bgKey=''; buildAll(); applyEnv(); camera.position.copy(cam[0]); controls.target.copy(cam[1]); controls.update(); update(true); } } }
+$('bLibSave').onclick=()=>{ const name=$('libName').value.trim(); if(!name){ $('libMsg').textContent='Scrivi prima un nome.'; return; }
+  const l=libGet(); l[name]=clone(p); $('libMsg').textContent=libSet(l)?`«${name}» salvato in questo browser.`:'Salvataggio non riuscito: il browser blocca la memoria locale.'; $('libName').value=''; openGallery(); };
+$('bGal').onclick=openGallery; $('bGalX').onclick=()=>$('gallery').close(); $('gallery').addEventListener('click',e=>{ if(e.target===$('gallery')) $('gallery').close(); });
+$('gallery').addEventListener('close',()=>{ galRun++; if(galKeep){ p=galKeep; galKeep=null; bgKey=''; buildAll(); applyEnv(); update(true); fit(); } });
+
+/* ---------- campione da foto ---------- */
+let fImg=null, fRect=null, fRes=null;
+function photoTex(id,url){ return new Promise(res=>{ const im=new Image(); im.onload=()=>{ const N=256, cv=document.createElement('canvas'); cv.width=cv.height=N; const c=cv.getContext('2d'); c.drawImage(im,0,0,N,N);
+    const d=c.getImageData(0,0,N,N).data, h=new Float32Array(N*N); let m=0; for(let i=0;i<N*N;i++){ h[i]=(0.2126*d[i*4]+0.7152*d[i*4+1]+0.0722*d[i*4+2])/255; m+=h[i]; } m/=N*N;
+    const bl=new Float32Array(N*N); for(let y=0;y<N;y++) for(let x=0;x<N;x++){ let s=0; for(let k=-4;k<=4;k++) s+=h[y*N+Math.min(N-1,Math.max(0,x+k))]; bl[y*N+x]=s/9; } for(let i=0;i<N*N;i++) h[i]=0.5+(h[i]-bl[i])*2;
+    const mk=(t,srgb)=>{ const x=new THREE.CanvasTexture(t); x.wrapS=x.wrapT=THREE.MirroredRepeatWrapping; x.colorSpace=srgb?THREE.SRGBColorSpace:THREE.NoColorSpace; x.anisotropy=maxAniso; x.center.set(0.5,0.5); return x; };
+    PHOTO[id]={c:mk(cv,true),n:mk(normalFromH(h,N,3))}; res(); }; im.onerror=()=>res(); im.src=url; }); }
+async function loadSamples(){ for(const id in p.samples||{}) if(!PHOTO[id]) await photoTex(id,p.samples[id].url); }
+function fotoDraw(){ const box=$('fotoBox'); if(!fImg){ box.innerHTML='<span class="note">Nessuna foto</span>'; return; } let cv=box.querySelector('canvas'); if(!cv){ box.innerHTML=''; cv=document.createElement('canvas'); box.append(cv); fotoEvents(cv); }
+  const k=Math.min(1,1400/Math.max(fImg.width,fImg.height)); cv.width=Math.round(fImg.width*k); cv.height=Math.round(fImg.height*k); const c=cv.getContext('2d'); c.drawImage(fImg,0,0,cv.width,cv.height);
+  if(fRect){ const [x,y,w,h]=fRect; c.fillStyle='rgba(0,0,0,0.45)'; c.fillRect(0,0,cv.width,cv.height); c.drawImage(fImg,x/k,y/k,w/k,h/k,x,y,w,h); c.strokeStyle='#fff'; c.lineWidth=2; c.setLineDash([6,4]); c.strokeRect(x+1,y+1,w-2,h-2); } }
+function fotoEvents(cv){ let a=null; const P=e=>{ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)/r.width*cv.width,(e.clientY-r.top)/r.height*cv.height]; };
+  cv.addEventListener('pointerdown',e=>{ a=P(e); cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove',e=>{ if(!a) return; const b=P(e), s=Math.max(Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1])); fRect=[b[0]<a[0]?a[0]-s:a[0],b[1]<a[1]?a[1]-s:a[1],s,s]; fotoDraw(); });
+  cv.addEventListener('pointerup',()=>{ a=null; if(fRect&&fRect[2]>12) fotoAnalyze(cv); }); }
+// colore medio (in luce lineare), quanto varia, direzione dominante (tensore di struttura), riflessi
+function fotoAnalyze(cv){ const [x,y,w]=fRect, N=256, cc=$('fotoCrop'), c=cc.getContext('2d'); c.drawImage(cv,x,y,w,w,0,0,N,N);
+  // la foto si riprende senza la mascherina scura: si ridisegna dall'immagine originale
+  const k=cv.width/fImg.width; c.drawImage(fImg,x/k,y/k,w/k,w/k,0,0,N,N);
+  const d=c.getImageData(0,0,N,N).data, L=new Float32Array(N*N); let r=0,g=0,b=0;
+  for(let i=0;i<N*N;i++){ r+=lin(d[i*4]/255); g+=lin(d[i*4+1]/255); b+=lin(d[i*4+2]/255); L[i]=0.2126*d[i*4]/255+0.7152*d[i*4+1]/255+0.0722*d[i*4+2]/255; }
+  const n=N*N, toS=v=>v<=0.0031308?v*12.92:1.055*Math.pow(v,1/2.4)-0.055, col=rgb2hex([toS(r/n),toS(g/n),toS(b/n)]);
+  let m=0; for(const v of L) m+=v; m/=n; let sd=0; for(const v of L) sd+=(v-m)**2; sd=Math.sqrt(sd/n);
+  let jxx=0,jyy=0,jxy=0; for(let yy=1;yy<N-1;yy++) for(let xx=1;xx<N-1;xx++){ const gx=L[yy*N+xx+1]-L[yy*N+xx-1], gy=L[(yy+1)*N+xx]-L[(yy-1)*N+xx]; jxx+=gx*gx; jyy+=gy*gy; jxy+=gx*gy; }
+  const tr=jxx+jyy, det=Math.sqrt((jxx-jyy)**2+4*jxy*jxy), coh=tr>0?det/tr:0, ang=0.5*Math.atan2(2*jxy,jxx-jyy)*180/Math.PI, dir=((ang+90)%180+180)%180;
+  let hi=0; for(const v of L) if(v>m+2.5*sd&&v>0.6) hi++; const hiF=hi/n, sat=chroma(col);
+  const met=(coh>0.35&&sat<14&&m>0.35)||(sat>10&&hiF>0.01&&sd>0.12), gu=clamp(hiF>0.02?70:hiF>0.006?35:sd<0.05?12:6,2,90);
+  fRes={col,sd,coh,dir:Math.round(coh>0.25?dir:0)%180,met,gu,an:coh>0.35&&met,url:cc.toDataURL('image/jpeg',0.85)};
+  const nr=nearRAL(col); $('fotoRes').hidden=false;
+  $('fotoDl').innerHTML=`<dt>Colore medio</dt><dd><span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:${col};vertical-align:-2px"></span> ${col.toUpperCase()} · vicino a RAL ${nr.code} ${esc(nr.name)} (ΔE ${nf(nr.dE,1)})</dd>
+    <dt>Variazione</dt><dd>${sd<0.04?'bassa (superficie uniforme)':sd<0.1?'media (grana o venatura leggera)':'alta (trama marcata)'}</dd>
+    <dt>Direzione</dt><dd>${coh>0.25?`a ${fRes.dir}° (${met?'spazzolatura':'venatura o trama'}), forza ${nf(coh*100,0)} %`:'nessuna (trama uguale in tutte le direzioni)'}</dd>
+    <dt>Aspetto</dt><dd>${gu>50?'lucido':gu>20?'satinato':'opaco'}, ${met?'probabilmente metallico':'non metallico'} — da controllare a occhio</dd>`;
+  $('bFotoCol').disabled=$('bFotoTex').disabled=false; }
+function fotoLoad(f){ if(!f) return; const url=URL.createObjectURL(f), im=new Image(); im.onload=()=>{ fImg=im; fRect=null; fRes=null; $('fotoRes').hidden=true; $('bFotoCol').disabled=$('bFotoTex').disabled=true; fotoDraw(); }; im.src=url; }
+$('bFotoPick').onclick=()=>$('fotoFile').click(); $('fotoFile').addEventListener('change',e=>{ fotoLoad(e.target.files[0]); e.target.value=''; });
+$('fotoDlg').addEventListener('dragover',e=>e.preventDefault()); $('fotoDlg').addEventListener('drop',e=>{ e.preventDefault(); fotoLoad(e.dataTransfer.files[0]); });
+$('bFotoX').onclick=()=>$('fotoDlg').close();
+$('bFotoCol').onclick=()=>{ const c=ctx(); if(!c.s||!fRes) return; const F=c.F;
+  if(F.cols==='anod'){ c.s.anod=nearAnod(fRes.col); say(`L'anodizzazione non fa qualunque colore: scelto il più vicino, ${ANOD[c.s.anod][0].toLowerCase()}.`); }
+  else if(F.cols==='fixed'||F.cols==='tint'){ c.s.fam='lacca'; c.s.var='satinata'; c.s.col=fRes.col; fixRanges(c.s,true); say('Il colore di questa finitura non si sceglie: passo a una laccatura con il colore della foto.'); }
+  else { c.s.col=fRes.col; const n=nearRAL(fRes.col); c.s.code=n.dE<1.5?'RAL '+n.code:''; }
+  $('fotoDlg').close(); update(); };
+$('bFotoTex').onclick=async()=>{ const c=ctx(); if(!c.s||!fRes) return; const id=uid(), nr=Object.keys(p.samples).length+1;
+  p.samples[id]={name:'Campione '+nr,url:fRes.url,col:fRes.col,mm:40,ns:clamp(fRes.sd*6,0.2,1.2),met:fRes.met,an:fRes.an,v:1}; await photoTex(id,fRes.url);
+  Object.assign(c.s,{fam:'foto',var:'foto',foto:id,gu:fRes.gu,dir:0,ts:1,tn:1,code:'',pms:'',ncs:''}); $('fotoDlg').close(); setSec(1); update(); say(`Creato «Campione ${nr}»: la foto copre 40 × 40 mm, si cambia con «Scala della trama».`); };
+
+/* ---------- scheda CMF ---------- */
+let schMode='cliente', schAll=false;
+const plain=h=>{ const d=document.createElement('div'); d.innerHTML=h; return d.textContent; };
+const gl=gu=>gu<10?'opaco':gu<35?'satinato':gu<70?'semilucido':'lucido';
+function specText(r){ const s=r.s, F=r.F, V=r.V, out=[];
+  if(r.mark) return {fin:`${V.n}`,col:s.var==='laser'?'colore del materiale sotto':(s.code||r.col.toUpperCase()),asp:s.var==='laser'?'segno opaco':'inchiostro'};
+  const col=F.cols==='anod'?(ANOD[s.anod]||ANOD.naturale)[0]:F.cols==='tint'?ESS[s.ess||'noce'][0]+(s.tint&&s.tint!=='#ffffff'?', tinto':''):F.cols==='fixed'?'colore del metallo':F.cols==='photo'?(p.samples[s.foto]||{}).name||'campione':(s.code||nearRAL(r.col).name);
+  return {fin:`${F.n}, ${V.n.toLowerCase()}`+((s.fam==='ottone'||s.fam==='rame')&&s.prot?`, ${s.prot==='lacca'?'con vernice trasparente':s.prot==='cera'?'a cera':'nudo'}`:''),col,asp:gl(r.gu)+(V.tex?`, ${({brush:'spazzolato',radial:'tornito concentrico',blast:'sabbiato fine',grain:'goffrato',orange:'buccia d\'arancia',wrinkle:'raggrinzante',flake:'metallizzato',weave:'trama',knit:'maglia',felt:'feltro',leather:'grana pelle',tolex:'grana vinile',vdi:'goffratura a stampo',fdm:'righe di stampa',spray:'spruzzato',patina:'patinato'})[V.tex]||''}`:'')}; }
+function swatch(c){ return `<span class="sw" style="background:${c}"></span>`; }
+function schedaHTML(){ const vis=schAll?p.variants.map((_,i)=>i):[p.cur], date=new Date().toLocaleDateString('it-IT'), cliente=schMode==='cliente';
+  // seconda immagine: dall'alto se i comandi guardano in su (pedali, synth), altrimenti di fronte
+  const up=p.parts.filter(q=>q.kind==='manopola'&&Math.abs(q.rx+90)<20).length, fr=p.parts.filter(q=>q.kind==='manopola'&&Math.abs(q.rx)<20).length, v2=up>fr?'alto':'fronte';
+  const sv=view; const imgs=vis.map(vi=>({a:shot(vi,1600,1000),b:shot(vi,800,600,()=>{ view=v2; fit(); view=sv; })})); fit();
+  const pages=vis.map((vi,k)=>{ const Z=zonesIn(vi), Co=costs(vi,Z), Ch=checks(vi,Z,true), ChG=checks(vi,Z), Ti=tips(vi,Z), solid=Z.filter(r=>!r.mark), tot=solid.reduce((s,r)=>s+r.area,0)||1, v=p.variants[vi];
+    const byCol=new Map(); for(const r of solid){ let key=[...byCol.keys()].find(c=>dE00(c,r.col)<4); if(!key){ key=r.col; byCol.set(key,{a:0,r}); } byCol.get(key).a+=r.area; }
+    const pal=[...byCol.entries()].sort((a,b)=>b[1].a-a[1].a).map(([c,e])=>`<i style="background:${c};width:${e.a/tot*100}%"></i>`).join('');
+    const rows=Z.map((r,i)=>{ const t=specText(r), ch=Ch.filter(c=>c.go&&c.go.pid===r.pt.id&&c.go.zone===r.zone&&c.lvl!=='ok').map(c=>plain(c.html).replace(/^[^:]+:\s*/,'')), cost=Co.rows.find(x=>x.r===r);
+      if(cliente) return `<tr><td>${esc(r.pt.name)}<small>${esc(zoneName(r.pt,r.zone))}</small></td><td>${esc(r.mark?'—':SUB[r.s.sub]?SUB[r.s.sub][0]:'')}</td><td>${esc(t.fin)}</td><td>${swatch(r.col)} ${esc(t.col)}</td><td>${esc(t.asp)}</td></tr>`;
+      const gl_=r.mark?'—':isMetal(r.s)?`Ra ${nf(r.s.ra??r.V.ra,2)} µm`:`${nf(r.s.gu??r.V.gu[2],0)} ± ${p.tolG} GU`;
+      return `<tr><td>${i+1}</td><td>${esc(r.pt.name)}<small>${esc(zoneName(r.pt,r.zone))}</small></td><td>${esc(r.mark?'—':SUB[r.s.sub]?SUB[r.s.sub][0]:'')}</td><td>${esc(t.fin)}${r.V.tex&&(r.s.dir||r.V.an)?`<small>direzione ${nf(r.s.dir||0,0)}°</small>`:''}</td>
+        <td>${swatch(r.col)} ${esc(r.col.toUpperCase())}<small>${esc([t.col!==r.s.code?t.col:'',r.s.code,r.s.pms?'Pantone '+r.s.pms:'',r.s.ncs?'NCS '+r.s.ncs:''].filter(Boolean).join(' · '))}</small></td><td>${gl_}</td><td class="nt">${BOUGHT(r.pt)?'Pezzo acquistato: finitura dal catalogo del produttore.':ch.map(esc).join('<br>')||'—'}</td><td class="n">${cost?nf(cost.per,2):'—'}</td></tr>`; }).join('');
+    const head=cliente?'<tr><th>Pezzo</th><th>Materiale</th><th>Finitura</th><th>Colore</th><th>Aspetto</th></tr>':'<tr><th>N°</th><th>Pezzo · zona</th><th>Materiale di base</th><th>Finitura e processo</th><th>Colore e codici</th><th>Gloss 60° / Ra</th><th>Note di produzione</th><th>€/pz</th></tr>';
+    return `<section class="page"><header><div><h1>${esc(p.nome)}</h1><p>Scheda CMF ${cliente?'':'per il fornitore'} · variante <b>${esc(v.name)}</b></p></div><dl>${p.codice?`<dt>Codice</dt><dd>${esc(p.codice)}</dd>`:''}${p.cliente?`<dt>Cliente</dt><dd>${esc(p.cliente)}</dd>`:''}<dt>Data</dt><dd>${date}</dd>${p.autore?`<dt>Autore</dt><dd>${esc(p.autore)}</dd>`:''}</dl></header>
+      <div class="imgs"><img src="${imgs[k].a}" alt=""><img src="${imgs[k].b}" alt=""></div><div class="pal">${pal}</div>
+      <table>${head}${rows}</table>
+      ${cliente?`<div class="tips">${Ti.map(t=>`<div><b>${esc(t.t)}</b>${t.h.replace(/<div class="gbar">[\s\S]*?<\/div><div class="scale">[\s\S]*?<\/div>/,'').replace(/ data-go="[^"]*"/g,'')}</div>`).join('')}</div>`
+      :`<div class="cols"><div><h2>Requisiti</h2><ul>
+        <li>Colore: scarto ammesso ΔE2000 ≤ ${nf(p.tolE,1)} rispetto al campione approvato, misurato con spettrofotometro, illuminante D65, osservatore 10°, componente speculare esclusa. In caso di dubbio fa fede il confronto visivo in cabina luci D65.</li>
+        <li>Brillantezza: glossmetro a 60° (ISO 2813), scarto ammesso ± ${p.tolG} GU. Per le superfici sotto 10 GU misurare anche a 85°.</li>
+        ${Z.some(r=>r.s.fam==='anod')?'<li>Anodizzazione: spessore dello strato di ossido classe 15 µm per interni (20 µm se il pezzo va all\'esterno), fissaggio a caldo; colore da campioni limite chiaro e scuro approvati. Pezzi affiancati anodizzati nello stesso bagno.</li>':''}
+        ${Z.some(r=>r.s.fam==='polvere')?'<li>Polvere: spessore 60–80 µm (Qualicoat classe 1), pretrattamento di conversione, prova di quadrettatura ISO 2409 classe 0–1.</li>':''}
+        ${Z.some(r=>isMetal(r.s)&&r.V.tex==='brush')?'<li>Spazzolatura: direzione come indicato, grana uniforme, nessuna inversione visibile tra pezzi affiancati.</li>':''}
+        <li>Sequenza: lavorazioni meccaniche → sbavatura → finitura superficiale → anodizzazione o verniciatura → marcature → controllo e imballo protetto.</li>
+        <li>Campionatura: tre pezzi per finitura da approvare prima della serie.</li></ul></div>
+        <div><h2>Costo indicativo</h2><p>Finiture ${nf(Co.pz,2)} € a pezzo, avviamenti ${nf(Co.setup,0)} € sul lotto di ${p.qty}: <b>${nf(Co.unit,2)} € a pezzo</b>. Ordine di grandezza (±50 %), da confermare con il preventivo.</p>
+        <h2>Verifiche aperte</h2><ul>${ChG.filter(c=>c.lvl==='err'||c.lvl==='warn').map(c=>`<li>${esc(plain(c.html))}</li>`).join('')||'<li>Nessuna.</li>'}</ul></div></div>`}
+      ${p.note?`<p class="nt2"><b>Note:</b> ${esc(p.note)}</p>`:''}<footer>Officina Finiture ${VER} · I colori a schermo e in stampa sono indicativi: fa fede il campione fisico.</footer></section>`; });
+  let cmp=''; if(vis.length>1){ const keys=[], seen=new Set(); for(const vi of vis) for(const r of zonesIn(vi)){ const k=r.pt.id+'|'+r.zone; if(!seen.has(k)){ seen.add(k); keys.push(r); } }
+    cmp=`<section class="page"><header><div><h1>${esc(p.nome)}</h1><p>Confronto delle varianti</p></div></header><div class="cmpimgs">${vis.map((vi,k)=>`<figure><img src="${imgs[k].a}" alt=""><figcaption>${esc(p.variants[vi].name)}</figcaption></figure>`).join('')}</div>
+      <table><tr><th>Pezzo · zona</th>${vis.map(vi=>`<th>${esc(p.variants[vi].name)}</th>`).join('')}</tr>${keys.map(r=>`<tr><td>${esc(r.pt.name)}<small>${esc(zoneName(r.pt,r.zone))}</small></td>${vis.map(vi=>{ if(hidden(vi,r.pt)) return '<td>—</td>'; const z=zonesIn(vi).find(x=>x.pt.id===r.pt.id&&x.zone===r.zone); if(!z) return '<td>—</td>'; const t=specText(z); return `<td>${swatch(z.col)} ${esc(t.fin)}<small>${esc(t.col)} · ${esc(t.asp)}</small></td>`; }).join('')}</tr>`).join('')}
+      <tr><td><b>Costo a pezzo</b></td>${vis.map(vi=>`<td><b>${nf(costs(vi,zonesIn(vi)).unit,2)} €</b></td>`).join('')}</tr></table><footer>Officina Finiture ${VER}</footer></section>`; }
+  return `<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><title>Scheda CMF · ${esc(p.nome)}</title><style>
+  @page{size:A4;margin:12mm} *{box-sizing:border-box} body{margin:0;font:10pt/1.35 "IBM Plex Sans",system-ui,"Segoe UI",sans-serif;color:#222;background:#fff}
+  .page{padding:10mm 12mm;page-break-after:always;max-width:210mm;margin:0 auto} header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #7d3c6b;padding-bottom:6px;margin-bottom:10px}
+  h1{font:600 18pt/1.1 "IBM Plex Sans Condensed","Arial Narrow",sans-serif;margin:0;letter-spacing:.02em} header p{margin:3px 0 0;color:#555} dl{display:grid;grid-template-columns:auto auto;gap:1px 10px;margin:0;font-size:9pt} dt{color:#777} dd{margin:0}
+  h2{font:600 9.5pt "IBM Plex Sans Condensed",sans-serif;text-transform:uppercase;letter-spacing:.08em;color:#7d3c6b;margin:10px 0 4px}
+  .imgs{display:grid;grid-template-columns:2fr 1fr;gap:6px} .imgs img,.cmpimgs img{width:100%;border-radius:4px;display:block} .pal{display:flex;height:10px;border-radius:3px;overflow:hidden;margin:6px 0 10px} .pal i{display:block;height:100%}
+  table{width:100%;border-collapse:collapse;font-size:8.6pt} th{text-align:left;font:600 7.8pt "IBM Plex Sans Condensed",sans-serif;text-transform:uppercase;letter-spacing:.05em;color:#666;border-bottom:1px solid #999;padding:3px 4px}
+  td{border-bottom:1px solid #ddd;padding:4px;vertical-align:top} td small{display:block;color:#777;font-size:7.8pt} td.n{text-align:right;white-space:nowrap} td.nt{font-size:7.8pt;color:#444;max-width:62mm}
+  .sw{display:inline-block;width:11px;height:11px;border-radius:3px;border:1px solid rgba(0,0,0,.25);vertical-align:-1px}
+  .tips{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-top:10px;font-size:8.8pt} .tips b{display:block;font:600 8.5pt "IBM Plex Sans Condensed",sans-serif;text-transform:uppercase;letter-spacing:.06em;color:#7d3c6b} .tips ul{margin:2px 0;padding-left:14px} .tips p{margin:2px 0}
+  .cols{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;font-size:8.6pt} .cols ul{padding-left:14px;margin:2px 0} .cols li{margin-bottom:3px}
+  .cmpimgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:6px;margin-bottom:10px} figure{margin:0} figcaption{font:600 8.5pt "IBM Plex Sans Condensed",sans-serif;text-transform:uppercase;letter-spacing:.06em;margin-top:3px}
+  .nt2{font-size:9pt;margin-top:10px} footer{margin-top:12px;font-size:7.5pt;color:#888;border-top:1px solid #ddd;padding-top:4px}
+  @media screen{body{background:#e3e4e7}.page{background:#fff;margin:12px auto;box-shadow:0 2px 10px rgba(0,0,0,.15)}}</style></head><body>${pages.join('')}${cmp}</body></html>`; }
+function openScheda(){ $('schCli').setAttribute('aria-pressed',schMode==='cliente'); $('schFor').setAttribute('aria-pressed',schMode!=='cliente'); $('schOne').setAttribute('aria-pressed',!schAll); $('schAll').setAttribute('aria-pressed',schAll); $('schAll').disabled=p.variants.length<2;
+  const h=schedaHTML(); $('schedaFrame').srcdoc=h; $('schedaDlg')._h=h; if(!$('schedaDlg').open) $('schedaDlg').showModal(); }
+$('bScheda').onclick=openScheda; $('schCli').onclick=()=>{ schMode='cliente'; openScheda(); }; $('schFor').onclick=()=>{ schMode='fornitore'; openScheda(); };
+$('schOne').onclick=()=>{ schAll=false; openScheda(); }; $('schAll').onclick=()=>{ schAll=true; openScheda(); }; $('bSchX').onclick=()=>$('schedaDlg').close();
+$('bSchSave').onclick=()=>download(new Blob([$('schedaDlg')._h],{type:'text/html'}),fileBase()+'_scheda_CMF'+(schMode==='cliente'?'_cliente':'_fornitore')+'.html');
+$('bSchPrint').onclick=()=>{ try{ $('schedaFrame').contentWindow.focus(); $('schedaFrame').contentWindow.print(); }catch(e){ say('La stampa da qui è bloccata: salva la scheda e aprila nel browser.'); } };
+
+/* ---------- pulsanti ---------- */
+$('bSide').onclick=()=>{ if(p.variants.length<2) return; p.side=!p.side; update(true); fit(); };
+$('bSpin').onclick=()=>{ spinOn=!spinOn; $('bSpin').setAttribute('aria-pressed',spinOn); if(!spinOn){ root.rotation.y=0; } requestRender(); };
+$('bFront').onclick=()=>{ view=view==='fronte'?'libera':'fronte'; $('bFront').setAttribute('aria-pressed',view==='fronte'); $('bTop').setAttribute('aria-pressed',false); fit(); };
+$('bTop').onclick=()=>{ view=view==='alto'?'libera':'alto'; $('bTop').setAttribute('aria-pressed',view==='alto'); $('bFront').setAttribute('aria-pressed',false); fit(); };
+$('bFit').onclick=()=>fit();
+function wire(){ const B=id=>btns[id]&&btns[id].row;
+  B('bDup').onclick=()=>{ const pt=selPart(); if(!pt) return; const q=clone(pt); q.id=uid(); q.name=pt.name+' (copia)'; const b=new THREE.Box3().setFromObject(PG.get(pt.id).grp); q.x=+(pt.x+(b.max.x-b.min.x)+10).toFixed(1);
+    p.parts.push(q); for(const v of p.variants){ if(v.asg[pt.id]) v.asg[q.id]=clone(v.asg[pt.id]); if((v.hide||[]).includes(pt.id)) v.hide.push(q.id); } p.sel=q.id; update(); };
+  B('bDel').onclick=()=>{ const pt=selPart(); if(!pt) return; p.parts=p.parts.filter(q=>q.id!==pt.id); for(const v of p.variants){ delete v.asg[pt.id]; v.hide=(v.hide||[]).filter(x=>x!==pt.id); } p.sel=p.parts[0]?p.parts[0].id:''; update(); say(`Tolto «${pt.name}». Annulla lo rimette.`); };
+  B('bFoto').onclick=()=>{ $('fotoDlg').showModal(); fotoDraw(); };
+  B('bCopyAll').onclick=()=>{ const c=ctx(); let n=0; for(const q of p.parts) if(q.kind===c.pt.kind&&q.id!==c.pt.id){ const v=curV(); v.asg[q.id]=v.asg[q.id]||{}; v.asg[q.id][c.zone]=clone(c.s); n++; } update(); say(n?`Copiata su ${n} ${n>1?'pezzi':'pezzo'}.`:'Non ci sono altri pezzi dello stesso tipo.'); };
+  B('bCopyVar').onclick=()=>{ const c=ctx(); p.variants.forEach((v,i)=>{ if(i===p.cur) return; v.asg[c.pt.id]=v.asg[c.pt.id]||{}; v.asg[c.pt.id][c.zone]=clone(c.s); }); update(); say('Copiata in tutte le varianti.'); };
+  B('bScheda2').onclick=openScheda; }
+
+/* ---------- avvio ---------- */
+function loadLocal(){ try{ const s=JSON.parse(localStorage.getItem('finiture')||'null'); if(!s||!s.parts) return false; try{ unpackMeshes(JSON.parse(localStorage.getItem('finiture_mesh')||'{}')); }catch(e){} p=migrate(s); return true; }catch(e){ return false; } }
+buildUI(); wire();
+if(!loadLocal()||!p.parts.length&&false) p=TPL['Synth da tavolo, frontale in alluminio e fianchi in legno']();
+if(!p.parts.length&&!localStorage.getItem('finiture')) p=TPL['Synth da tavolo, frontale in alluminio e fianchi in legno']();
+p.parts=p.parts.filter(pt=>pt.kind!=='stl'||MESHES[pt.g.mesh]);
+loadSamples().then(()=>{ if(Object.keys(p.samples).length) update(); });
+update(); fit(); hCommit();
+window.__fin={get p(){return p}, set p(v){p=v}, TPL, applyProject, update, fit, zonesIn, checks, tips, costs, openArea, schedaHTML, shot, renderer, scene, camera, PG, MC, FAM, specFor, openFiles, fromGriglie, fromManopole, nearRAL, dE00, setSec, goTo, ctx, view:v=>{ view=v; fit(); }};
+</script>
+</body>
+</html>

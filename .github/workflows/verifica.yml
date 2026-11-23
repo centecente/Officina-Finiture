@@ -1,0 +1,72 @@
+# A ogni modifica caricata sul ramo main: controlla il programma, rigenera la versione senza rete
+# e pubblica le due pagine in una nuova Release (pagina del progetto su GitHub, sezione Releases, l'ultima in cima).
+# Stesso schema di Officina Manopole: gira sul computer di Filippo (runner self-hosted, Windows), tutto in PowerShell.
+name: Verifica e pubblica
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verifica:
+    runs-on: self-hosted
+    defaults:
+      run:
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -File {0}
+    steps:
+      - name: Scarica i file del repository
+        uses: actions/checkout@v4
+
+      - name: Controlla il programma
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not (Test-Path finiture.html)) { throw 'finiture.html non trovato' }
+          $html = [IO.File]::ReadAllText((Resolve-Path finiture.html))
+          foreach ($pezzo in '<script type="importmap">', 'function makeMat', 'function buildAll', 'function report', 'function schedaHTML', 'id="ver"') {
+            if (-not $html.Contains($pezzo)) { throw "In finiture.html manca: $pezzo" }
+          }
+          $ver = [regex]::Match($html, 'id="ver">([^<]+)<').Groups[1].Value
+          "Versione del programma: $ver"
+          "Dimensione: $([math]::Round($html.Length/1KB)) KB"
+
+      - name: Rigenera la versione senza rete
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & .\crea-versione-offline.ps1
+
+      - name: Controlla la versione senza rete
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $f = Get-Item finiture-offline.html
+          if ($f.Length -lt 1300000) { throw "finiture-offline.html troppo piccolo: $($f.Length) byte" }
+          $off = [IO.File]::ReadAllText($f.FullName)
+          if (-not $off.Contains('librerie 3D incorporate')) { throw 'Le librerie non risultano incorporate' }
+          if ($off.Contains('<script type="importmap">')) { throw 'E rimasto il caricamento delle librerie dalla rete' }
+          "Versione senza rete: $([math]::Round($f.Length/1MB,2)) MB, librerie incorporate"
+
+      - name: Pubblica la Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+          $h = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = 'application/vnd.github+json' }
+          $api = "https://api.github.com/repos/$env:GITHUB_REPOSITORY"
+          $ora = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId((Get-Date), 'W. Europe Standard Time')
+          $data = $ora.ToString('yyyy-MM-dd HH:mm')
+          $html = [IO.File]::ReadAllText((Resolve-Path finiture.html))
+          $ver = [regex]::Match($html, 'id="ver">([^<]+)<').Groups[1].Value
+          # le note: il messaggio dell'ultima modifica, senza le righe di firma (niente lettere accentate nello script)
+          $msg = (Invoke-RestMethod -Headers $h "$api/commits/$env:GITHUB_SHA").commit.message
+          $note = ($msg -split "`n" | Where-Object { $_ -notmatch '^(Co-Authored-By|Claude-Session):' }) -join "`n"
+          $note += "`n`nScarica **finiture-offline.html** qui sotto e aprilo con doppio clic: funziona senza rete. **finiture.html** pesa meno ma carica le librerie 3D dalla rete.`n"
+          $corpo = @{ tag_name = "finiture-$env:GITHUB_RUN_NUMBER"; target_commitish = $env:GITHUB_SHA; name = "Officina Finiture $ver $([char]0xB7) $data"; body = $note; make_latest = 'true' } | ConvertTo-Json
+          $rel = Invoke-RestMethod -Method Post -Headers $h -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($corpo)) "$api/releases"
+          $su = "https://uploads.github.com/repos/$env:GITHUB_REPOSITORY/releases/$($rel.id)/assets"
+          Invoke-RestMethod -Method Post -Headers $h -ContentType 'text/html' -InFile 'finiture-offline.html' "${su}?name=finiture-offline.html" | Out-Null
+          Invoke-RestMethod -Method Post -Headers $h -ContentType 'text/html' -InFile 'finiture.html' "${su}?name=finiture.html" | Out-Null
+          "Pubblicata: $($rel.html_url)"
