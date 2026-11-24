@@ -191,7 +191,7 @@ h2{font:600 13px var(--cond);letter-spacing:.08em;text-transform:uppercase;margi
 </head>
 <body>
 <header>
-  <h1>Officina <span>Finiture</span> <small id="ver">v1.1.0</small></h1>
+  <h1>Officina <span>Finiture</span> <small id="ver">v1.1.1</small></h1>
   <div class="bar">
     <button id="bUndo" title="Annulla l'ultima modifica (Ctrl+Z)" disabled>Annulla</button>
     <button id="bRedo" title="Ripeti la modifica annullata (Ctrl+Y)" disabled>Ripeti</button>
@@ -261,7 +261,7 @@ h2{font:600 13px var(--cond);letter-spacing:.08em;text-transform:uppercase;margi
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const VER='1.1.0';
+const VER='1.1.1';
 const TAU=Math.PI*2, clamp=(v,a,b)=>Math.min(b,Math.max(a,v)), lerp=(a,b,t)=>a+(b-a)*t;
 const $=id=>document.getElementById(id);
 const nf=(v,d=1)=>(+v).toLocaleString('it-IT',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -732,8 +732,8 @@ function makeMat(s,ctx){ const F=famOf(s), V=varOf(s), uvmm=ctx.uvmm||1, m=new T
   if(F.cols==='tint'){ const t=tex('wood:'+(s.ess||'noce')), c=t.c.clone(); c.needsUpdate=true; c.repeat.set(uvmm/250,uvmm/250); c.rotation=rot; m.map=c; m.color.set(s.tint||'#ffffff'); useN(t.n,250,0.25); }
   if(V.mix){ const c=tex('mix').c.clone(); c.needsUpdate=true; c.repeat.set(rep(V.T),rep(V.T)); c.rotation=rot; m.map=c; }
   if(key==='patina'){ const c=tex('patina').c.clone(); c.needsUpdate=true; c.repeat.set(rep(V.T),rep(V.T)); m.map=c; }
-  if(F.cols==='photo'){ const S=p.samples&&p.samples[s.foto]; if(S&&PHOTO[s.foto]){ const P=PHOTO[s.foto], T=S.mm||40; const c=P.c.clone(), n=P.n.clone(); c.needsUpdate=n.needsUpdate=true;
-      for(const t of [c,n]){ t.repeat.set(uvmm/T,uvmm/T); t.rotation=rot; } m.map=c; m.color.set('#ffffff'); m.normalMap=n; m.normalScale.set(S.ns??0.5,S.ns??0.5); m.metalness=S.met?0.85:0; if(S.an) m.anisotropy=0.7; } }
+  if(F.cols==='photo'){ const S=p.samples&&p.samples[s.foto]; if(S&&PHOTO[s.foto]){ const P=PHOTO[s.foto], T=(S.mm||40)*(s.ts||1), ns=(S.ns??0.5)*(s.tn??1); const c=P.c.clone(), n=P.n.clone(); c.needsUpdate=n.needsUpdate=true;
+      for(const t of [c,n]){ t.repeat.set(uvmm/T,uvmm/T); t.rotation=rot; } m.map=c; m.color.set('#ffffff'); m.normalMap=n; m.normalScale.set(ns,ns); m.metalness=S.met?0.85:0; if(S.an) m.anisotropy=0.7; } }
   if(V.cc||((F===FAM.ottone||F===FAM.rame)&&s.prot==='lacca')){ m.clearcoat=V.cc||0.55; m.clearcoatRoughness=V.cc?0.02:0.08; if(s.fam==='vetro'&&s.var==='retro'){ m.roughness=0.35; } }
   if(V.sh){ m.sheen=V.sh; const c=new THREE.Color(col); m.sheenColor=c.clone().lerp(new THREE.Color(1,1,1),0.35); m.sheenRoughness=0.55; }
   if(V.tr){ m.transmission=V.tr; m.thickness=ctx.thick||3; m.ior=s.fam==='acrilico'?1.49:1.52; m.metalness=0; if(V.fu){ m.attenuationColor.set(s.col||'#5a5e62'); m.attenuationDistance=6; m.color.set('#ffffff'); } else if(s.fam==='vetro'){ m.attenuationColor.set('#e8f1ee'); m.attenuationDistance=60; m.color.set('#ffffff'); } }
@@ -767,7 +767,7 @@ function defSpec(kind,zone,pt){ const S=(fam,v,sub,x)=>({fam,var:v,sub,dir:0,ts:
     case 'componente.lente': return S('acrilico','lucido','pmma',{col:'#ff3b2f'});
     case 'stl.superficie': return S('plastica','fdm','stampa3d',{col:'#2b2f34'});
   } return S('polvere','liscia','acciaio',{col:'#808080'}); }
-function newPart(kind,o={}){ return {id:uid(),kind,name:o.name||KIND[kind].n,g:{...KIND[kind].g,...(o.g||{})},x:o.x||0,y:o.y||0,z:o.z||0,rx:o.rx||0,ry:o.ry||0,rz:o.rz||0}; }
+function newPart(kind,o={}){ return {id:uid(),kind,name:o.name||KIND[kind].n,g:{...KIND[kind].g,...(o.g||{})},x:o.x||0,y:o.y||0,z:o.z||0,rx:o.rx||0,ry:o.ry||0,rz:o.rz||0,floor:!!o.floor}; }
 let p=clone(DEFP);
 const curV=()=>p.variants[clamp(p.cur,0,p.variants.length-1)];
 const partById=id=>p.parts.find(q=>q.id===id);
@@ -853,7 +853,7 @@ function legendFor(pt){ const g=pt.g; if(!(pt.kind==='pannello'||pt.kind==='scat
   const geo=new THREE.PlaneGeometry(W,H); geo.translate(0,0,zf+0.04); return {geo,t}; }
 function buildAll(){ const ids=new Set(p.parts.map(q=>q.id));
   for(const [id,e] of PG) if(!ids.has(id)){ root.remove(e.grp); for(const m of e.meshes) m.geometry.dispose(); if(e.leg){ e.leg.geometry.dispose(); } PG.delete(id); }
-  for(const pt of p.parts) buildPart(pt);
+  for(const pt of p.parts){ buildPart(pt); if(pt.floor) toFloor(pt); }
   root.updateMatrixWorld(true);
   for(const pt of p.parts){ const e=PG.get(pt.id); if(e.leg){ e.grp.remove(e.leg); e.leg.geometry.dispose(); e.leg.userData.tex.dispose(); e.leg=null; }
     const L=legendFor(pt); if(L){ const m=new THREE.Mesh(L.geo); m.userData={pid:pt.id,zone:'scritte',mark:1,tex:L.t,area:0}; m.renderOrder=2; e.grp.add(m); e.leg=m; } }
@@ -883,7 +883,7 @@ let hovMat=null; function unHov(){ if(hovMat&&hovMat.userData.em){ hovMat.emissi
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 function sceneBox(){ const b=new THREE.Box3(); root.updateMatrixWorld(true); for(const pt of p.parts){ const e=PG.get(pt.id); if(!e) continue; let any=false; for(let vi=0;vi<p.variants.length;vi++) if(!hidden(vi,pt)) any=true; if(any) b.expandByObject(e.grp); } if(b.isEmpty()) b.set(new THREE.Vector3(-50,-50,-50),new THREE.Vector3(50,50,50)); return b; }
 function placeLight(){ const b=sceneBox(), c=b.getCenter(new THREE.Vector3()), s=b.getSize(new THREE.Vector3()).length()||200, d=key.userData.dir||new THREE.Vector3(0,1,0.4);
-  ground.position.set(c.x,b.min.y-0.05,c.z); ground.scale.set(s*8,s*8,1);
+  ground.position.set(c.x,-0.05,c.z); ground.scale.set(s*8,s*8,1);
   key.target.position.copy(c); key.position.copy(c).addScaledVector(d,s*1.6); const sc=key.shadow.camera; sc.left=sc.bottom=-s*0.8; sc.right=sc.top=s*0.8; sc.near=s*0.2; sc.far=s*4; sc.updateProjectionMatrix(); }
 let view='libera';
 function fit(){ const b=sceneBox(), c=b.getCenter(new THREE.Vector3()), sz=b.getSize(new THREE.Vector3()), r=sz.length()/2||100, asp=vpAspect(), d=r/Math.sin(camera.fov*Math.PI/360)/Math.min(1,asp)*0.92;
@@ -968,7 +968,7 @@ const SCHEMA=[
    R('g','D','Diametro esterno',20,500,1,'mm',isK('altoparlante')),
    S('g','tipo','Tipo',COMP,isK('componente')), C('g','on','LED acceso',c=>isK('componente')(c)&&c.pt.g.tipo==='led'), K('g','lc','Colore della luce',c=>isK('componente')(c)&&c.pt.g.tipo==='led'),
    R('g','sc','Scala',0.01,100,0.01,'×',isK('stl')), S('g','up','Verticale nel file',{z:'Asse Z (Fusion, SolidWorks, Rhino, Onshape)',y:'Asse Y (Blender, alcuni CAD)'},isK('stl')),
-   G('Posizione e rotazione',c=>!!c.pt), R('pt','x','Destra, sinistra',-1500,1500,0.5,'mm',c=>!!c.pt), R('pt','y','Su, giù',-1500,1500,0.5,'mm',c=>!!c.pt), R('pt','z','Avanti, indietro',-1500,1500,0.5,'mm',c=>!!c.pt),
+   G('Posizione e rotazione',c=>!!c.pt), R('pt','x','Destra, sinistra',-1500,1500,0.5,'mm',c=>!!c.pt), C('pt','floor','Appoggiato al banco',c=>!!c.pt), R('pt','y','Altezza dal banco (centro del pezzo)',-1500,1500,0.5,'mm',c=>!!c.pt&&!c.pt.floor), R('pt','z','Avanti, indietro',-1500,1500,0.5,'mm',c=>!!c.pt),
    B('bRotY','Gira di 90° sul piano','rotate','Ruota il pezzo attorno all\'asse verticale',c=>!!c.pt), B('bRotX','Ribalta di 90° (in piedi o sdraiato)','flip','Ruota il pezzo in avanti di 90°: se è arrivato sdraiato lo mette in piedi',c=>!!c.pt),
    B('bFloor','Appoggia sul piano','floor','Porta la base del pezzo sul piano',c=>!!c.pt), W('wMoveHelp',()=>'<p class="help">Nella vista: Maiusc+trascina un pezzo per spostarlo sul piano.</p>',c=>!!c.pt),
    R('pt','rx','Inclina avanti',-180,180,1,'°',c=>!!c.pt), R('pt','ry','Gira sul posto',-180,180,1,'°',c=>!!c.pt), R('pt','rz','Ruota nel piano',-180,180,1,'°',c=>!!c.pt),
@@ -1006,6 +1006,7 @@ const SCHEMA=[
    G('Dati della scheda'), T('p','nome','Progetto'), T('p','codice','Codice articolo'), T('p','cliente','Cliente'), T('p','autore','Autore'), T('p','note','Note','', 'Per la scheda'),
    B('bScheda2','Apri la scheda CMF','sheet','Scheda per il cliente o per il fornitore, da stampare o salvare in PDF') ]} ];
 const HELP={
+  floor:'Il pezzo sta sul banco: il suo punto più basso resta a quota zero anche se lo ruoti o ne cambi le misure. Toglilo per mettere il pezzo sopra o davanti a un altro (una manopola su un pannello, una griglia sul mobile).',
   gu:'Brillantezza misurata con il glossmetro a 60° (ISO 2813): sotto 10 GU opaco, 10–35 satinato, 35–70 semilucido, oltre 70 lucido. Per le polveri Qualicoat chiede ±5 GU rispetto al valore dichiarato.',
   ra:'Rugosità media della superficie in micrometri: 0,05 specchio, 0,2–0,4 satinato fine, 0,5–0,8 spazzolato, 1,6–3,2 sabbiato. Sul disegno si scrive «Ra 0,8» con la direzione della spazzolatura.',
   sub:'Di che cosa è fatto il pezzo sotto la finitura. Decide quali finiture sono possibili: l\'anodizzazione esiste solo sull\'alluminio, e sull\'alluminio pressofuso viene grigia e a chiazze.',
@@ -1086,7 +1087,13 @@ function onSet(f,c){ const s=c.s;
   if(f.o==='g'&&c.pt.kind==='manopola'&&f.k==='D'&&c.pt.g.Dt>c.pt.g.D) c.pt.g.Dt=c.pt.g.D;
   if(f.o==='g'&&(f.k==='up'||f.k==='sc')) setTimeout(()=>settle(c.pt),0); }
 // porta la base del pezzo sul piano (quota 0)
-function settle(pt){ if(!pt) return; buildAll(); const e=PG.get(pt.id); if(!e) return; e.grp.updateMatrixWorld(true); const b=new THREE.Box3().setFromObject(e.grp); if(b.isEmpty()) return; pt.y=+(pt.y-b.min.y).toFixed(2); update(); fit(); }
+function settle(pt){ if(!pt) return; pt.floor=true; update(); fit(); }
+// pezzo appoggiato: il punto più basso, con la rotazione attuale, sta sulla quota del banco (calcolato sui vertici veri, tenuto in memoria)
+function toFloor(pt){ const e=PG.get(pt.id); if(!e||!e.meshes.length) return; const k=e.sig+'|'+pt.rx+'|'+pt.ry+'|'+pt.rz;
+  if(e.fk!==k){ const R=new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(pt.rx*Math.PI/180,pt.ry*Math.PI/180,pt.rz*Math.PI/180)).elements, a=R[1], b=R[5], c=R[9]; let mn=Infinity;
+    for(const m of e.meshes){ const P=m.geometry.attributes.position.array; for(let i=0;i<P.length;i+=3){ const y=a*P[i]+b*P[i+1]+c*P[i+2]; if(y<mn) mn=y; } }
+    e.fk=k; e.fmin=isFinite(mn)?mn:0; }
+  pt.y=+(-e.fmin).toFixed(2); e.grp.position.y=pt.y; }
 function fixRanges(s,resetGloss){ const V=varOf(s); if(V.gu&&(resetGloss||s.gu==null||s.gu<V.gu[0]||s.gu>V.gu[1])) s.gu=V.gu[2]; if(isMetal(s)&&(resetGloss||s.ra==null)) s.ra=V.ra; if(s.fam==='polvere'&&s.coat==null) s.coat=0.15; }
 function buildUI(){ const rootEl=$('controls'); rootEl.innerHTML='<nav id="rail" aria-label="Sezioni dei parametri"></nav><div id="secs"></div>';
   SCHEMA.forEach((sec,i)=>{ const tab=document.createElement('div'); tab.className='tab';
@@ -1148,7 +1155,7 @@ $('controls').addEventListener('input',e=>{ const t=e.target, c=ctx();
   if(t.id==='f_zname'){ const q=(c.pt.g.zones||[]).find(z=>z.k===c.zone); if(q){ q.n=t.value; update(true); } }
   if(t.id==='f_ralq'){ ralQ=t.value; syncUI(); }
   if(t.dataset.vname!=null){ p.variants[+t.dataset.vname].name=t.value; update(true); } });
-function addPart(kind,o){ const pt=newPart(kind,o); const b=sceneBox(); if(!o&&p.parts.length){ pt.x=+(b.max.x+40+(KIND[kind].g.W||KIND[kind].g.D||30)/2).toFixed(0); }
+function addPart(kind,o){ const pt=newPart(kind,{floor:true,...(o||{})}); const b=sceneBox(); if(!o&&p.parts.length){ pt.x=+(b.max.x+40+(KIND[kind].g.W||KIND[kind].g.D||30)/2).toFixed(0); }
   p.parts.push(pt); p.sel=pt.id; p.zone=''; for(let vi=0;vi<p.variants.length;vi++) for(const z of Object.keys(KIND[kind].zones)) specFor(vi,pt,z); setSec(0); update(); fit(); return pt; }
 
 /* ---------- calcoli: superfici, abbinamenti, vincoli, costi ---------- */
@@ -1350,7 +1357,7 @@ async function openFiles(files){ const added=[], notes=[];
       // i CAD (Fusion, SolidWorks, Rhino, Onshape) esportano con l'asse Z verso l'alto: lo raddrizzo; si cambia nel Banco
       const up='z', floorY=-(mn[2]-c[2]); let x0=0; if(p.parts.length){ buildAll(); x0=Math.round(sceneBox().max.x+40+(mx[0]-mn[0])/2); }
       for(const r of R){ const A=analyzeSTL(r.pos,r.col,up), id=uid(); MESHES[id]={pos:r.pos,zid:A.zid}; const nm=r.f.name.replace(/\.stl$/i,'');
-        const pt=newPart('stl',{name:nm,x:x0,y:+floorY.toFixed(2),g:{mesh:id,file:r.f.name,up,zones:A.zones}}); p.parts.push(pt); for(let vi=0;vi<p.variants.length;vi++) for(const z of zonesOf(pt)) specFor(vi,pt,z); added.push(pt);
+        const pt=newPart('stl',{name:nm,x:x0,y:+floorY.toFixed(2),floor:R.length===1,g:{mesh:id,file:r.f.name,up,zones:A.zones}}); p.parts.push(pt); for(let vi=0;vi<p.variants.length;vi++) for(const z of zonesOf(pt)) specFor(vi,pt,z); added.push(pt);
         notes.push(A.bodies>1?`${nm}: ${A.bodies} corpi separati → ${A.zones.length} parti${A.bodies>A.zones.length?' (le copie identiche sono unite)':''}`+(r.col?', con i colori del CAD':''):`${nm}: un corpo solo`);
         if(r.pos.length/9>400000) notes.push(`${nf(r.pos.length/9,0)} triangoli: la vista può rallentare`); } } }
   for(const f of files){ try{
@@ -1362,7 +1369,7 @@ async function openFiles(files){ const added=[], notes=[];
     catch(err){ console.error(err); say(`${f.name}: file non valido (${err.message||err}).`); } }
   if(added.length){ p.sel=added[added.length-1].id; p.zone=''; p.zsel=[]; const isS=added.some(a=>a.kind==='stl'&&a.g.zones&&a.g.zones.length>1); setSec(isS?1:0); update(); fit();
     say((notes.length?notes.join('. ')+'. ':'')+(isS?'Clic su una parte per vestirla, Ctrl+clic per sceglierne più d\'una. ':'')+'Maiusc+trascina sposta il pezzo sul piano.'); } }
-function placeNew(pt){ if(p.parts.length){ buildAll(); const b=sceneBox(); pt.x=Math.round(b.max.x+40+(pt.kind==='griglia'?gridBox(pt.g)[0]/2:pt.kind==='manopola'?pt.g.D/2:0)); } p.parts.push(pt); for(let vi=0;vi<p.variants.length;vi++) for(const z of Object.keys(KIND[pt.kind].zones)) specFor(vi,pt,z); return pt; }
+function placeNew(pt){ pt.floor=true; if(p.parts.length){ buildAll(); const b=sceneBox(); pt.x=Math.round(b.max.x+40+(pt.kind==='griglia'?gridBox(pt.g)[0]/2:pt.kind==='manopola'?pt.g.D/2:0)); } p.parts.push(pt); for(let vi=0;vi<p.variants.length;vi++) for(const z of Object.keys(KIND[pt.kind].zones)) specFor(vi,pt,z); return pt; }
 const nearAnod=h=>Object.entries(ANOD).sort((a,b)=>dE00(h,a[1][1])-dE00(h,b[1][1]))[0][0];
 function fromGriglie(j,fn){ const shape=['tonda','stadio'].includes(j.shape)?j.shape:'rett', pat=PAT[j.pat]?j.pat:'tondi60';
   const pt=placeNew(newPart('griglia',{name:(fn||'Griglia').replace(/\.json$/i,''),g:{shape,W:j.W||200,H:j.H||300,Dg:j.Dg||200,r:j.cornerR??6,t:j.t||1,pat,hd:j.hd||3,pitch:j.pitch||5,slotL:j.slotL||15,margin:j.margin??10,dome:j.dome||0}}));
@@ -1401,7 +1408,7 @@ const Sp={ anod:(var_,anod,sub='al_lamiera',x)=>({fam:'anod',var:var_,anod,sub,r
   pl:(var_,col,sub='plastica',x)=>({fam:'plastica',var:var_,col,sub,gu:FAM.plastica.v[var_].gu[2],...x}) };
 const knobs=(list,o)=>list.map(([x,y,z,lab])=>P('manopola',{name:'Manopola '+lab.toLowerCase(),x,y,z,rx:o.rx||0,g:{...o.g,lab}}));
 const TPL={
- 'Pedale per chitarra (scatola 125B)':()=>{ const box=P('scatola',{name:'Scatola 125B',g:{W:66,H:122,D:39,r:5,b:2.5,leg:true},y:19.5,rx:-90});
+ 'Pedale per chitarra (scatola 125B)':()=>{ const box=P('scatola',{name:'Scatola 125B',g:{W:66,H:122,D:39,r:5,b:2.5,leg:true},y:19.5,rx:-90,floor:true});
    const K=knobs([[-16,39,-40,'Gain'],[16,39,-40,'Level'],[0,39,-17,'Tone']],{rx:-90,g:{D:15,Dt:14,H:15,er:1,grip:'zigrinata',N:28,gd:0.35,ptr:'linea'}});
    const fs=P('componente',{name:'Footswitch',g:{tipo:'footswitch'},y:39,z:32,rx:-90}), led=P('componente',{name:'LED',g:{tipo:'led',on:true,lc:'#ff3b2f'},y:39,z:5,rx:-90});
    const parts=[box,...K,fs,led];
@@ -1409,15 +1416,15 @@ const TPL={
      ['A · Nero satinato e alluminio',{0:{corpo:Sp.pol('liscia','9005',25,'al_pressofuso'),scritte:Sp.mark('serigrafia','9010')},...Object.fromEntries(K.map((_,j)=>[j+1,{corpo:Sp.anod('tornito','nero','al_tornito'),indice:Sp.mark('laser')}]))}],
      ['B · Rosso traffico bucciato',{0:{corpo:Sp.pol('bucciata','3020',70,'al_pressofuso'),scritte:Sp.mark('serigrafia','9010')},...Object.fromEntries(K.map((_,j)=>[j+1,{corpo:Sp.pl('satinata','#151517'),indice:Sp.mark('tampo','9010')}]))}],
      ['C · Blu anodizzato (da verificare)',{0:{corpo:Sp.anod('opaco','blu','al_pressofuso'),scritte:Sp.mark('laser')},...Object.fromEntries(K.map((_,j)=>[j+1,{corpo:Sp.anod('tornito','naturale','al_tornito'),indice:Sp.mark('tampo','9005')}]))}] ])); },
- 'Synth da tavolo, frontale in alluminio e fianchi in legno':()=>{ const box=P('scatola',{name:'Corpo e frontale',g:{W:300,H:160,D:40,r:3,b:1.5,front:true,leg:true},y:20,rx:-90});
-   const L=P('pannello',{name:'Fianco sinistro',g:{W:180,H:70,t:12,r:8,b:2,leg:false},x:-162,y:35,ry:90}), Rr=P('pannello',{name:'Fianco destro',g:{W:180,H:70,t:12,r:8,b:2,leg:false},x:150,y:35,ry:90});
+ 'Synth da tavolo, frontale in alluminio e fianchi in legno':()=>{ const box=P('scatola',{name:'Corpo e frontale',g:{W:300,H:160,D:40,r:3,b:1.5,front:true,leg:true},y:20,rx:-90,floor:true});
+   const L=P('pannello',{name:'Fianco sinistro',g:{W:180,H:70,t:12,r:8,b:2,leg:false},x:-162,y:35,ry:90,floor:true}), Rr=P('pannello',{name:'Fianco destro',g:{W:180,H:70,t:12,r:8,b:2,leg:false},x:150,y:35,ry:90,floor:true});
    const K=knobs([[-105,40,-35,'Cutoff'],[-35,40,-35,'Reso'],[35,40,-35,'Env'],[105,40,-35,'Decay'],[-105,40,25,'Attack'],[-35,40,25,'Release'],[35,40,25,'Lfo'],[105,40,25,'Volume']],{rx:-90,g:{D:22,Dt:20,H:17,er:1.5,grip:'zigrinata',N:36,gd:0.4,ptr:'linea'}});
    const parts=[box,L,Rr,...K], K_=s=>Object.fromEntries(K.map((_,j)=>[j+3,s]));
    return fillTpl(tpl('Synth da tavolo',parts,[
      ['A · Nero spazzolato, noce, alluminio',{0:{corpo:Sp.pol('goffrata','9005',8),fronte:Sp.anod('spazzolato','nero'),scritte:Sp.mark('serigrafia','9010')},1:{piano:Sp.wood('noce','olio')},2:{piano:Sp.wood('noce','olio')},...K_({corpo:Sp.anod('tornito','naturale','al_tornito'),indice:Sp.mark('tampo','9005')})}],
      ['B · Argento opaco, rovere, manopole nere',{0:{corpo:Sp.pol('goffrata','7016',8),fronte:Sp.anod('opaco','naturale'),scritte:Sp.mark('serigrafia','9005')},1:{piano:Sp.wood('rovere','olio')},2:{piano:Sp.wood('rovere','olio')},...K_({corpo:Sp.lac('soft','9005','plastica'),indice:Sp.mark('tampo','2011')})}],
      ['C · Argento e ottone nudo',{0:{corpo:Sp.pol('goffrata','9005',8),fronte:Sp.anod('spazzolato','naturale'),scritte:Sp.mark('serigrafia','9005')},1:{piano:Sp.wood('wenge','opaca')},2:{piano:Sp.wood('wenge','opaca')},...K_({corpo:Sp.met('ottone','satinato','ottone',{prot:'nudo'}),indice:Sp.mark('riempita','9005')})}] ])); },
- 'Diffusore da scaffale a due vie':()=>{ const box=P('scatola',{name:'Mobile',g:{W:200,H:330,D:260,r:3,b:3,front:true},y:165});
+ 'Diffusore da scaffale a due vie':()=>{ const box=P('scatola',{name:'Mobile',g:{W:200,H:330,D:260,r:3,b:3,front:true},y:165,floor:true});
    const wf=P('altoparlante',{name:'Woofer',g:{D:165},y:125,z:130}), tw=P('altoparlante',{name:'Tweeter',g:{D:62},y:262,z:130});
    const tel=P('telaio',{name:'Griglia in tessuto',g:{W:192,H:322,r:3,t:10},y:165,z:131}), gr=P('griglia',{name:'Griglia in lamiera',g:{shape:'rett',W:192,H:322,r:3,t:1,pat:'tondi60',hd:2.5,pitch:4,margin:8,dome:0},y:165,z:142});
    return fillTpl(tpl('Diffusore da scaffale',[box,wf,tw,tel,gr],[
@@ -1429,26 +1436,26 @@ const TPL={
    const K=[P('manopola',{name:'Manopola volume',x:150,y:51,z:178,g:{D:44,Dt:42,H:22,er:2,grip:'liscia',ptr:'punto',lab:'Volume'}}),P('manopola',{name:'Manopola ingressi',x:-150,y:51,z:178,g:{D:32,Dt:30,H:18,er:1.5,grip:'liscia',ptr:'punto',lab:'Input'}}),
      P('manopola',{name:'Manopola bassi',x:-60,y:51,z:178,g:{D:20,Dt:19,H:15,er:1,grip:'zigrinata',N:40,gd:0.3,ptr:'punto',lab:'Bass'}}),P('manopola',{name:'Manopola acuti',x:-10,y:51,z:178,g:{D:20,Dt:19,H:15,er:1,grip:'zigrinata',N:40,gd:0.3,ptr:'punto',lab:'Treble'}})];
    const led=P('componente',{name:'LED',g:{tipo:'led',on:true,lc:'#ffb14a'},x:75,y:51,z:178});
-   const ft=[[-180,-130],[180,-130],[-180,130],[180,130]].map(([x,z],i)=>P('componente',{name:'Piedino '+(i+1),g:{tipo:'piedino'},x,y:6,z,rx:90}));
+   const ft=[[-180,-130],[180,-130],[-180,130],[180,130]].map(([x,z],i)=>P('componente',{name:'Piedino '+(i+1),g:{tipo:'piedino'},x,y:6,z,rx:90,floor:true}));
    const parts=[box,fr,...K,led,...ft], KK=s=>Object.fromEntries(K.map((_,j)=>[j+2,s])), FT=Object.fromEntries(ft.map((_,j)=>[j+7,{metallo:{fam:'gomma',var:'epdm',sub:'gomma',col:'#141414',gu:3}}]));
    return fillTpl(tpl('Amplificatore integrato',parts,[
      ['A · Alluminio naturale spazzolato',{0:{corpo:Sp.pol('goffrata','9005',8)},1:{piano:Sp.anod('spazzolato','naturale'),scritte:Sp.mark('serigrafia','9005')},...KK({corpo:Sp.anod('tornito','naturale','al_tornito'),indice:Sp.mark('riempita','9005')}),...FT}],
      ['B · Nero spazzolato e argento',{0:{corpo:Sp.pol('goffrata','9005',8)},1:{piano:Sp.anod('spazzolato','nero'),scritte:Sp.mark('laser')},...KK({corpo:Sp.anod('tornito','naturale','al_tornito'),indice:Sp.mark('riempita','9005')}),...FT}],
      ['C · Champagne e ottone',{0:{corpo:Sp.pol('goffrata','8019',8)},1:{piano:Sp.anod('spazzolato','champagne'),scritte:Sp.mark('serigrafia','8022')},...KK({corpo:Sp.met('ottone','satinato','ottone',{prot:'lacca'}),indice:Sp.mark('riempita','8022')}),...FT}] ])); },
- 'Cassa PA in poliurea con griglia in lamiera':()=>{ const box=P('scatola',{name:'Mobile',g:{W:380,H:600,D:380,r:4,b:4},y:300});
+ 'Cassa PA in poliurea con griglia in lamiera':()=>{ const box=P('scatola',{name:'Mobile',g:{W:380,H:600,D:380,r:4,b:4},y:300,floor:true});
    const w=P('altoparlante',{name:'Woofer 15"',g:{D:380},y:215,z:186}), m=P('altoparlante',{name:'Medio',g:{D:120},y:470,z:186});
    const gr=P('griglia',{name:'Griglia',g:{shape:'rett',W:372,H:592,r:4,t:1.5,pat:'tondi60',hd:4,pitch:6,margin:12,dome:0},y:300,z:200});
    return fillTpl(tpl('Cassa PA',[box,w,m,gr],[
      ['A · Poliurea nera, griglia bucciata',{0:{corpo:{fam:'poliurea',var:'grossa',sub:'multistrato',col:RAL['9005'][1],code:'RAL 9005',gu:4}},3:{lamiera:Sp.pol('bucciata','9005',60)}}],
      ['B · Poliurea antracite',{0:{corpo:{fam:'poliurea',var:'fine',sub:'multistrato',col:RAL['7016'][1],code:'RAL 7016',gu:6}},3:{lamiera:Sp.pol('liscia','7016',30)}}] ])); },
- 'Amplificatore per chitarra (vinile e tessuto)':()=>{ const box=P('scatola',{name:'Mobile',g:{W:520,H:440,D:250,r:10,b:6,front:true},y:220});
+ 'Amplificatore per chitarra (vinile e tessuto)':()=>{ const box=P('scatola',{name:'Mobile',g:{W:520,H:440,D:250,r:10,b:6,front:true},y:220,floor:true});
    const pan=P('pannello',{name:'Pannello comandi',g:{W:500,H:64,t:2,r:3,b:0.5,leg:true},y:392,z:125});
    const K=knobs([[-180,392,127,'Volume'],[-90,392,127,'Treble'],[0,392,127,'Middle'],[90,392,127,'Bass'],[180,392,127,'Presence']],{g:{D:22,Dt:20,H:18,er:1,grip:'zigrinata',N:24,gd:0.5,skirt:true,sD:30,sH:2.5,ptr:'lato',cap:true}});
    const parts=[box,pan,...K], KK=s=>Object.fromEntries(K.map((_,j)=>[j+2,s]));
    return fillTpl(tpl('Amplificatore per chitarra',parts,[
      ['A · Vinile nero e oro',{0:{corpo:{fam:'pelle',var:'tolex',sub:'supporto',col:'#141414',gu:15},fronte:{fam:'tessuto',var:'trama',sub:'tessuto',col:'#7a6a50'}},1:{piano:Sp.anod('spazzolato','oro'),scritte:Sp.mark('serigrafia','9005')},...KK({corpo:Sp.pl('lucida','#0f0f10'),faccia:Sp.met('ottone','satinato','ottone',{prot:'lacca'}),indice:Sp.mark('tampo','9010')})}],
      ['B · Vinile crema e argento',{0:{corpo:{fam:'pelle',var:'tolex',sub:'supporto',col:'#e6d8b8',gu:15},fronte:{fam:'tessuto',var:'trama',sub:'tessuto',col:'#8c7a58'}},1:{piano:Sp.anod('spazzolato','naturale'),scritte:Sp.mark('serigrafia','9005')},...KK({corpo:Sp.pl('lucida','#efe6cf'),faccia:Sp.anod('tornito','naturale','al_tornito'),indice:Sp.mark('tampo','9005')})}] ])); },
- 'Radio da tavolo (legno e ottone)':()=>{ const box=P('scatola',{name:'Mobile',g:{W:280,H:170,D:130,r:12,b:4,front:false,leg:true},y:85});
+ 'Radio da tavolo (legno e ottone)':()=>{ const box=P('scatola',{name:'Mobile',g:{W:280,H:170,D:130,r:12,b:4,front:false,leg:true},y:85,floor:true});
    const gr=P('griglia',{name:'Griglia tonda',g:{shape:'tonda',Dg:120,t:0.8,pat:'tondi60',hd:2,pitch:3.2,margin:4,dome:2},x:-55,y:85,z:66});
    const K=knobs([[75,112,65,'Volume'],[75,52,65,'Sintonia']],{g:{D:30,Dt:28,H:16,er:2,grip:'scanalata',N:18,gd:0.8,ptr:'punto'}});
    const parts=[box,gr,...K], KK=s=>Object.fromEntries(K.map((_,j)=>[j+2,s]));

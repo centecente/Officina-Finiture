@@ -6,7 +6,7 @@ centro, scheda a destra, fondo grigio con rilievi morbidi); ogni officina ha il 
 
 Strumento CMF (Color, Material, Finish): si mettono sul banco i pezzi fatti con le altre officine, o frontali e mobili
 semplici, e li si «veste» con materiali e finiture reali, si confrontano le varianti sotto luci diverse e si esporta una
-scheda per il cliente o per il fornitore. Versione 1.1.0.
+scheda per il cliente o per il fornitore. Versione 1.1.1.
 
 ## File
 
@@ -41,6 +41,9 @@ scheda per il cliente o per il fornitore. Versione 1.1.0.
 - **Verticale del file**: gli STL nuovi si leggono con l'asse Z verso l'alto (Fusion, SolidWorks, Rhino, Onshape) e
   arrivano in piedi sul piano; nel Banco si passa ad asse Y. Pulsanti «Gira di 90° sul piano», «Ribalta di 90°»,
   «Appoggia sul piano»; nella vista Maiusc+trascina sposta un pezzo sul piano.
+- **Banco a quota zero** (dalla 1.1.1): il banco è un piano fisso; ogni pezzo aggiunto o aperto è «Appoggiato al banco»
+  (il suo punto più basso, calcolato sui vertici con la rotazione attuale, resta a zero anche ruotandolo o cambiando le
+  misure). Togliendo la spunta il pezzo si alza a mano (manopole sui pannelli, griglie sul mobile, chassis sui piedini).
 - **Pezzi dalle altre officine** («Apri» o trascinando il file sulla vista): `.stl` qualsiasi (normali morbide sotto i 35°,
   spigoli vivi sopra), `.json` di Officina Manopole (diventa una manopola con le stesse misure) e di Officina Griglie
   (contorno, foro, passo, foratura, spessore, materiale e finitura). Le maniglie a T e i galletti di Manopole vanno portati
@@ -145,6 +148,10 @@ Versione 1.0.0, provata in Chromium (WebGL software) con script automatici:
 - 1.1.0, con il cabinet di Filippo (STL di 20 MB, 404.698 triangoli, 40 corpi, colori del CAD): letto in meno di un secondo,
   31 parti (6 pannelli uguali uniti in una), in piedi sul piano; scelta di più parti, rotazione, appoggio, trascinamento,
   scheda, salvataggio (JSON di 10 MB) e riapertura con le stesse parti, anche nella versione senza rete.
+
+- 1.1.1: banco vuoto + scatola, manopola, griglia, altoparlante, componente e il cabinet STL: punto più basso di ognuno a
+  0,0 mm, anche dopo una rotazione di 37° e un cambio di altezza; nei modelli i pezzi sopra gli altri restano al loro posto.
+  Campione da foto: «Scala della trama» e «Rilievo della trama» ora agiscono (prima la foto restava a 40 mm e rilievo fisso).
 
 ## Da fare o da controllare
 
